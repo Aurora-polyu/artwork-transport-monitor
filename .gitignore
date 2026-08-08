@@ -1,0 +1,53 @@
+# Operating system files
+.DS_Store
+
+# Python bytecode, virtual environments, and tool caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Runtime state and generated outputs
+instance/
+*.log
+*.log.*
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+sotheby/logistics.db
+sotheby/logs/
+sotheby/transport_logs/*.csv
+sotheby/app.log
+sotheby/app.pid
+
+gps-demo.MOV
+project-demo.mov
+
+# Preserved legacy coursework implementation
+sotheby/
+
+# Legacy demo videos; new demos will be recorded after rebuild
+/gps-demo.MOV
+/project-demo.mov
+
+# Internal rebuild planning document
+/artwork_transportation_monitoring_rebuild_plan.md
+
+# Internal project planning
+/artwork_transportation_monitoring_rebuild_plan.md

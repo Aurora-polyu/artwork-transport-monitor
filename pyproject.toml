@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "artwork-transportation-monitor"
+version = "0.1.0"
+description = "Clean reconstruction of an artwork transportation monitoring coursework project."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+# Keep the base package dependency-free so it is usable on ordinary laptops.
+core = []
+demo = [
+  "Flask>=3.0,<4",
+  "Flask-SocketIO>=5.3,<6",
+]
+hardware = [
+  "smbus2>=0.4",
+  "RPi.GPIO>=0.7; platform_system == 'Linux' and platform_machine == 'armv7l'",
+  "pyserial>=3.5",
+  "pynmea2>=1.19",
+  "tflite-runtime>=2.13; platform_system == 'Linux'",
+]
+development = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+artwork-monitor = "artwork_monitor.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/artwork_monitor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
