@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import argparse
 import os
+import tempfile
+from datetime import timedelta
+from pathlib import Path
 
-from .adapters.simulated import run_simulated_session
+from .adapters.notifications import InMemoryNotificationDispatcher
+from .adapters.persistence import CsvTransportSessionExporter, SQLiteTransportSessionRepository
+from .adapters.simulated import SequenceSensorSource
 from .adapters.simulated.scenarios import normal_transport
+from .application import MonitoringService, TransportSessionWorkflow, render_markdown
 from .config import Settings
+from .domain import TransportSession
 
 
 def main() -> None:
@@ -23,17 +30,37 @@ def main() -> None:
         print(f"runtime directory: {settings.runtime_dir}")
         return
 
-    print("simulated normal transport session")
-    for result in run_simulated_session(normal_transport(), (0.0, 2.0)):
-        reading = result.reading
-        print(
-            f"step={result.monotonic_seconds:.1f} "
-            f"temperature={reading.temperature_c:.2f}C "
-            f"humidity={reading.humidity_percent_rh:.2f}%RH "
-            f"light={reading.light_lux:.2f}lux "
-            f"immediate={len(result.immediate_violations)} "
-            f"prolonged={len(result.prolonged_violations)}"
-        )
+    _run_demo(settings)
+
+
+def _run_demo(settings: Settings) -> None:
+    scenario = normal_transport()
+    assert scenario.readings
+    settings.runtime_dir.mkdir(parents=True, exist_ok=True)
+    artifact_directory = Path(tempfile.mkdtemp(prefix="artwork-monitor-demo-", dir=settings.runtime_dir))
+    repository = SQLiteTransportSessionRepository(artifact_directory / "transport.sqlite3")
+    dispatcher = InMemoryNotificationDispatcher()
+    service = MonitoringService(
+        SequenceSensorSource(scenario.readings),
+        session_repository=repository,
+        notification_dispatcher=dispatcher,
+    )
+    workflow = TransportSessionWorkflow(
+        service,
+        repository,
+        csv_exporter=CsvTransportSessionExporter(artifact_directory),
+    )
+    started_at = scenario.readings[0].timestamp
+    workflow.start(TransportSession("demo-normal", started_at))
+    workflow.run((0.0, 2.0))
+    outcome = workflow.complete(started_at + timedelta(seconds=4))
+
+    print("simulated end-to-end normal transport session")
+    print(f"artifacts: {artifact_directory}")
+    print(f"sqlite: {artifact_directory / 'transport.sqlite3'}")
+    print(f"csv: {outcome.csv_path}")
+    print(f"notifications: {len(dispatcher.messages)}")
+    print(render_markdown(outcome.report), end="")
 
 
 if __name__ == "__main__":
