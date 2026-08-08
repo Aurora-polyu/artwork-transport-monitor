@@ -3,6 +3,7 @@
 from .filtering import EnvironmentalFilters, EwmaFilter, clean_gravity_deviation
 from .monitoring import MonitoringCycle, MonitoringService
 from .prolonged_conditions import ProlongedConditionTracker
+from .reporting import SessionReport, SessionReportGenerator, render_markdown
 
 __all__ = [
     "EnvironmentalFilters",
@@ -10,5 +11,8 @@ __all__ = [
     "MonitoringCycle",
     "MonitoringService",
     "ProlongedConditionTracker",
+    "SessionReport",
+    "SessionReportGenerator",
     "clean_gravity_deviation",
+    "render_markdown",
 ]
