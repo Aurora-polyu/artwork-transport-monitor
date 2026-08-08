@@ -14,9 +14,10 @@ from artwork_monitor.domain import (
     Violation,
     evaluate_reading,
 )
-from artwork_monitor.ports import GPSFixSource, SensorSource, TransportSessionRepository
+from artwork_monitor.ports import GPSFixSource, NotificationDispatcher, SensorSource, TransportSessionRepository
 
 from .filtering import EnvironmentalFilters, clean_gravity_deviation
+from .notifications import notification_messages
 from .prolonged_conditions import ProlongedConditionTracker
 
 
@@ -41,6 +42,7 @@ class MonitoringService:
         gps_source: GPSFixSource | None = None,
         thresholds: MonitoringThresholds | None = None,
         session_repository: TransportSessionRepository | None = None,
+        notification_dispatcher: NotificationDispatcher | None = None,
     ) -> None:
         self._sensor_source = sensor_source
         self._gps_source = gps_source
@@ -48,6 +50,7 @@ class MonitoringService:
         self._filters = EnvironmentalFilters()
         self._prolonged_conditions = ProlongedConditionTracker()
         self._session_repository = session_repository
+        self._notification_dispatcher = notification_dispatcher
         self._session: TransportSession | None = None
         self._record_sequence = 0
         self._active = False
@@ -64,8 +67,10 @@ class MonitoringService:
             if session is None:
                 raise ValueError("a transport session is required when persistence is enabled")
             self._session_repository.create_session(session)
-        elif session is not None:
-            raise ValueError("a session repository is required to persist a transport session")
+        if self._notification_dispatcher is not None and session is None:
+            raise ValueError("a transport session is required when notifications are enabled")
+        if session is not None and self._session_repository is None and self._notification_dispatcher is None:
+            raise ValueError("a repository or notification dispatcher is required for a transport session")
         self._session = session
         self._record_sequence = 0
         self._active = True
@@ -117,6 +122,13 @@ class MonitoringService:
                 )
             )
             self._record_sequence += 1
+        if self._notification_dispatcher is not None and self._session is not None:
+            for message in notification_messages(
+                self._session.session_id,
+                immediate_violations=immediate_violations,
+                prolonged_violations=prolonged_violations,
+            ):
+                self._notification_dispatcher.dispatch(message)
         return cycle
 
     def stop(self, ended_at: datetime | None = None) -> None:
