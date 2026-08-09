@@ -28,6 +28,8 @@ See [`docs/clean-rebuild.md`](docs/clean-rebuild.md) for the architecture,
 workflow, thresholds, boundaries, and repository map. The detailed source
 audit is kept separately in [`docs/legacy-system-spec.md`](docs/legacy-system-spec.md)
 and [`docs/hardware-inventory.md`](docs/hardware-inventory.md).
+For a reproducible browser walkthrough and screenshot plan, see
+[`docs/demo.md`](docs/demo.md).
 
 ## Quick start
 
