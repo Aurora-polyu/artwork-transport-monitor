@@ -1,1 +1,16 @@
-{% extends "base.html" %}{% block title %}Transport Monitoring{% endblock %}{% block content %}<h1>Transport Monitoring</h1><section class="card"><p>Workflow state: <strong>{{ state }}</strong></p><p>POST explicit JSON actions to <code>/transport/start</code>, <code>/transport/step</code>, and <code>/transport/stop</code>. No monitoring begins when this page or app is created.</p></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Transport Monitoring · Artwork Transportation Monitoring{% endblock %}
+{% block content %}
+<section class="simple-page" aria-labelledby="transport-title">
+  <header class="simple-page-header">
+    <p class="eyebrow">TRANSPORT WORKFLOW</p>
+    <h1 id="transport-title">Transport Monitoring</h1>
+    <p>Explicit, caller-controlled transport actions for one session at a time.</p>
+  </header>
+  <article class="simple-panel">
+    <div class="simple-panel-heading"><div><span class="field-label">Workflow state</span><strong class="workflow-state">{{ state|replace('_', ' ') }}</strong></div><span class="badge badge-simulation">SIMULATION MODE</span></div>
+    <p>POST explicit JSON actions to <code>/transport/start</code>, <code>/transport/step</code>, and <code>/transport/stop</code>.</p>
+    <p class="simple-note">No monitoring begins when this page or application is created.</p>
+  </article>
+</section>
+{% endblock %}

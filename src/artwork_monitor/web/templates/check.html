@@ -1,1 +1,16 @@
-{% extends "base.html" %}{% block title %}Artwork Checking{% endblock %}{% block content %}<h1>Artwork Checking</h1><section class="card"><p>Checking: {{ 'active' if checking else 'idle' }}</p><table><tr><th>Lot</th><th>Artwork</th><th>Status</th></tr>{% for art in artworks %}<tr><td>{{ art.lot }}</td><td>{{ art.name }}</td><td>{{ art.status }}</td></tr>{% endfor %}</table><p>Use synchronous <code>/check/start</code>, <code>/check/step</code>, and <code>/check/stop</code> actions. No camera stream is started.</p></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Artwork Checking · Artwork Transportation Monitoring{% endblock %}
+{% block content %}
+<section class="simple-page" aria-labelledby="check-title">
+  <header class="simple-page-header">
+    <p class="eyebrow">IN-MEMORY WORKFLOW</p>
+    <h1 id="check-title">Artwork Checking</h1>
+    <p>Legacy-compatible artwork state workflow with neutral IN / OUT status.</p>
+  </header>
+  <article class="simple-panel">
+    <div class="simple-panel-heading"><div><span class="field-label">Checking</span><strong class="workflow-state">{{ 'active' if checking else 'idle' }}</strong></div><span class="badge badge-simulation">SIMULATION MODE</span></div>
+    <div class="table-wrap"><table><thead><tr><th>Lot</th><th>Artwork</th><th>Status</th></tr></thead><tbody>{% for art in artworks %}<tr><td>{{ art.lot }}</td><td>{{ art.name }}</td><td><span class="artwork-status is-{{ art.status }}">{{ art.status }}</span></td></tr>{% endfor %}</tbody></table></div>
+    <p class="simple-note">Use synchronous <code>/check/start</code>, <code>/check/step</code>, and <code>/check/stop</code> actions. No camera stream is started.</p>
+  </article>
+</section>
+{% endblock %}

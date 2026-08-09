@@ -45,6 +45,25 @@ class WebAppTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertIn(title, response.data)
 
+    def test_dashboard_uses_local_assets_and_correct_domain_labels(self) -> None:
+        with TemporaryDirectory() as temporary:
+            client = self._app(Path(temporary)).test_client()
+            page = client.get("/")
+
+            self.assertIn(b"dashboard.js", page.data)
+            self.assertIn(b"vendor/socket.io.js", page.data)
+            self.assertIn(b"Gravity Deviation", page.data)
+            self.assertIn(b"\xe2\x89\xa4 6000 lux", page.data)
+            self.assertIn(b"SIMULATION MODE", page.data)
+            self.assertNotIn(b"Vibration", page.data)
+            self.assertNotIn(b"cdn", page.data.lower())
+            script = client.get("/static/dashboard.js")
+            self.assertEqual(script.status_code, 200)
+            script.close()
+            socket_client = client.get("/static/vendor/socket.io.js")
+            self.assertEqual(socket_client.status_code, 200)
+            socket_client.close()
+
     def test_artwork_http_actions_delegate_to_injected_workflow(self) -> None:
         with TemporaryDirectory() as temporary:
             app = self._app(Path(temporary))

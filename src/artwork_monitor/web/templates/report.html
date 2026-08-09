@@ -1,1 +1,20 @@
-{% extends "base.html" %}{% block title %}Session Reports{% endblock %}{% block content %}<h1>Session Reports</h1><section class="card"><p>Available sessions: {% if session_ids %}{% for id in session_ids %}<a href="/report?session_id={{ id }}">{{ id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}none{% endif %}</p>{% if report %}<h2>{{ report.session_id }}</h2><p>Monitoring cycles: {{ report.monitoring_cycle_count }}</p><p>Temperature max: {{ report.temperature.maximum }}</p>{% else %}<p>Select a session. Reports never combine sessions.</p>{% endif %}</section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Session Reports · Artwork Transportation Monitoring{% endblock %}
+{% block content %}
+<section class="simple-page" aria-labelledby="report-title">
+  <header class="simple-page-header">
+    <p class="eyebrow">SESSION OUTPUT</p>
+    <h1 id="report-title">Session Reports</h1>
+    <p>Reports remain scoped to exactly one persisted transport session.</p>
+  </header>
+  <article class="simple-panel">
+    <div class="simple-panel-heading"><div><span class="field-label">Available sessions</span><h2>Select a report</h2></div><span class="badge badge-simulation">SIMULATION MODE</span></div>
+    {% if session_ids %}<ul class="session-link-list">{% for id in session_ids %}<li><a href="/report?session_id={{ id }}">{{ id }}</a></li>{% endfor %}</ul>{% else %}<p class="simple-empty">No persisted sessions are available yet.</p>{% endif %}
+    {% if report %}
+    <section class="report-summary" aria-label="Selected report summary"><h2>{{ report.session_id }}</h2><dl><div><dt>Monitoring cycles</dt><dd>{{ report.monitoring_cycle_count }}</dd></div><div><dt>Temperature maximum</dt><dd>{{ report.temperature.maximum if report.temperature.maximum is not none else 'n/a' }} °C</dd></div></dl></section>
+    {% else %}
+    <p class="simple-note">Select a session. Reports never combine sessions.</p>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

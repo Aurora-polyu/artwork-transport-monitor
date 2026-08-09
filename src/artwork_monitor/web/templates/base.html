@@ -1,7 +1,23 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Artwork Transportation Monitoring{% endblock %}</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
-<body><header><a class="brand" href="/">Sotheby's Transport Monitoring</a><nav>
-<a href="/transport">Transport</a><a href="/gps">GPS</a><a href="/check">Artwork Check</a><a href="/report">Reports</a></nav></header>
-<main>{% block content %}{% endblock %}</main><script src="/socket.io/socket.io.js"></script><script>window.artworkMonitorSocket=io();window.artworkMonitorSocket.on("state_snapshot",e=>window.artworkMonitorState=e);window.artworkMonitorSocket.on("transport_cycle",e=>window.artworkMonitorState=e);window.artworkMonitorSocket.on("artwork_status_changed",e=>window.artworkMonitorState=e);</script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Artwork Transportation Monitoring{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">Artwork Transportation Monitoring</a>
+    <nav aria-label="Primary navigation">
+      <a href="/" aria-current="{% if request.path == '/' %}page{% else %}false{% endif %}">Dashboard</a>
+      <a href="/transport">Transport</a>
+      <a href="/gps">GPS</a>
+      <a href="/check">Artwork Check</a>
+      <a href="/report">Reports</a>
+    </nav>
+  </header>
+  <main class="site-main">{% block content %}{% endblock %}</main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
