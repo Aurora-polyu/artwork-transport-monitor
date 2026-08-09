@@ -6,7 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
-from artwork_monitor.domain import SessionMonitoringRecord, StoredTransportSession, TransportSession
+from artwork_monitor.domain import (
+    SessionMonitoringRecord,
+    StoredTransportSession,
+    TransportSession,
+)
 
 
 class TransportSessionRepository(Protocol):

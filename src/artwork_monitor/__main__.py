@@ -9,7 +9,10 @@ from datetime import timedelta
 from pathlib import Path
 
 from .adapters.notifications import InMemoryNotificationDispatcher
-from .adapters.persistence import CsvTransportSessionExporter, SQLiteTransportSessionRepository
+from .adapters.persistence import (
+    CsvTransportSessionExporter,
+    SQLiteTransportSessionRepository,
+)
 from .adapters.simulated import (
     PassthroughImagePreprocessor,
     SequenceCameraSource,
@@ -17,7 +20,12 @@ from .adapters.simulated import (
     SequenceSensorSource,
 )
 from .adapters.simulated.scenarios import normal_transport
-from .application import ArtworkWorkflow, MonitoringService, TransportSessionWorkflow, render_markdown
+from .application import (
+    ArtworkWorkflow,
+    MonitoringService,
+    TransportSessionWorkflow,
+    render_markdown,
+)
 from .config import Settings
 from .domain import InferenceResult, TransportSession
 from .ports import CameraFrame
@@ -47,8 +55,12 @@ def _run_demo(settings: Settings) -> None:
     scenario = normal_transport()
     assert scenario.readings
     settings.runtime_dir.mkdir(parents=True, exist_ok=True)
-    artifact_directory = Path(tempfile.mkdtemp(prefix="artwork-monitor-demo-", dir=settings.runtime_dir))
-    repository = SQLiteTransportSessionRepository(artifact_directory / "transport.sqlite3")
+    artifact_directory = Path(
+        tempfile.mkdtemp(prefix="artwork-monitor-demo-", dir=settings.runtime_dir)
+    )
+    repository = SQLiteTransportSessionRepository(
+        artifact_directory / "transport.sqlite3"
+    )
     dispatcher = InMemoryNotificationDispatcher()
     service = MonitoringService(
         SequenceSensorSource(scenario.readings),
@@ -75,7 +87,9 @@ def _run_demo(settings: Settings) -> None:
 
 def _run_artwork_demo() -> None:
     workflow = ArtworkWorkflow(
-        camera_source=SequenceCameraSource(CameraFrame(f"demo-{number}") for number in range(1, 11)),
+        camera_source=SequenceCameraSource(
+            CameraFrame(f"demo-{number}") for number in range(1, 11)
+        ),
         preprocessor=PassthroughImagePreprocessor(),
         detector=SequenceDetector((InferenceResult(0, 0.99), InferenceResult(1, 0.99))),
     )

@@ -89,7 +89,9 @@ _LEGACY_IDENTITIES = {
 def legacy_artworks() -> dict[int, ArtworkState]:
     """Return fresh all-``out`` state for each documented legacy artwork."""
 
-    return {label: ArtworkState(identity) for label, identity in _LEGACY_IDENTITIES.items()}
+    return {
+        label: ArtworkState(identity) for label, identity in _LEGACY_IDENTITIES.items()
+    }
 
 
 def interpret_detection(result: InferenceResult | None) -> ArtworkDetection | None:

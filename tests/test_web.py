@@ -8,16 +8,68 @@ import sys
 from tempfile import TemporaryDirectory
 import threading
 import unittest
+from unittest.mock import patch
 
 from artwork_monitor.adapters.persistence import SQLiteTransportSessionRepository
-from artwork_monitor.domain import Condition, GPSFix, GPSFixStatus, HONG_KONG, SensorReading, SessionMonitoringRecord, TransportSession, Violation
-from artwork_monitor.web import CapabilityState, ComponentCapability, PhysicalValidation, RuntimeCapabilities, WebDependencies, create_app
+from artwork_monitor.domain import (
+    Condition,
+    GPSFix,
+    GPSFixStatus,
+    HONG_KONG,
+    SensorReading,
+    SessionMonitoringRecord,
+    TransportSession,
+    Violation,
+)
+from artwork_monitor.web import (
+    CapabilityState,
+    ComponentCapability,
+    PhysicalValidation,
+    RuntimeCapabilities,
+    WebDependencies,
+    create_app,
+)
 from artwork_monitor.web.services import create_demo_dependencies
 
 
 class WebAppTests(unittest.TestCase):
+    def test_web_launcher_explicitly_allows_werkzeug_for_local_demo(self) -> None:
+        class SocketServer:
+            def __init__(self) -> None:
+                self.run_arguments = None
+
+            def run(self, app, **kwargs) -> None:
+                self.run_arguments = (app, kwargs)
+
+        app = type("App", (), {})()
+        socket_server = SocketServer()
+        app.extensions = {"socketio": socket_server}
+
+        with (
+            patch("artwork_monitor.web.__main__.create_app", return_value=app),
+            patch.object(sys, "argv", ["artwork-monitor-web", "--port", "8123"]),
+        ):
+            from artwork_monitor.web.__main__ import main
+
+            main()
+
+        self.assertEqual(
+            socket_server.run_arguments,
+            (
+                app,
+                {
+                    "host": "127.0.0.1",
+                    "port": 8123,
+                    "debug": False,
+                    "allow_unsafe_werkzeug": True,
+                },
+            ),
+        )
+
     def _app(self, directory: Path):
-        app = create_app(dependencies=create_demo_dependencies(directory / "web.sqlite3"))
+        app = create_app(
+            dependencies=create_demo_dependencies(directory / "web.sqlite3")
+        )
         app.config.update(TESTING=True)
         return app
 
@@ -27,7 +79,12 @@ class WebAppTests(unittest.TestCase):
             app = self._app(Path(temporary))
 
             self.assertEqual(threading.active_count(), before)
-            self.assertEqual(app.extensions["artwork_monitor_dependencies"].artwork_workflow.checking, False)
+            self.assertEqual(
+                app.extensions[
+                    "artwork_monitor_dependencies"
+                ].artwork_workflow.checking,
+                False,
+            )
 
     def test_main_and_legacy_equivalent_pages_render(self) -> None:
         with TemporaryDirectory() as temporary:
@@ -113,7 +170,13 @@ class WebAppTests(unittest.TestCase):
                 SessionMonitoringRecord(
                     session_id="first",
                     sequence=0,
-                    reading=SensorReading(timestamp=started_at, temperature_c=21.0, humidity_percent_rh=40.0, light_lux=500.0, gravity_deviation_g=0.2),
+                    reading=SensorReading(
+                        timestamp=started_at,
+                        temperature_c=21.0,
+                        humidity_percent_rh=40.0,
+                        light_lux=500.0,
+                        gravity_deviation_g=0.2,
+                    ),
                     gps_fix=GPSFix(started_at, GPSFixStatus.FIX, 22.30, 114.17),
                     immediate_violations=(),
                     prolonged_violations=(),
@@ -124,22 +187,34 @@ class WebAppTests(unittest.TestCase):
                 SessionMonitoringRecord(
                     session_id="first",
                     sequence=1,
-                    reading=SensorReading(timestamp=dropout_at, temperature_c=22.0, humidity_percent_rh=41.0, light_lux=6000.1, gravity_deviation_g=None),
+                    reading=SensorReading(
+                        timestamp=dropout_at,
+                        temperature_c=22.0,
+                        humidity_percent_rh=41.0,
+                        light_lux=6000.1,
+                        gravity_deviation_g=None,
+                    ),
                     gps_fix=GPSFix.no_fix(dropout_at),
-                    immediate_violations=(Violation(Condition.LIGHT_HIGH, 6000.1, 6000.0, "lux", dropout_at),),
+                    immediate_violations=(
+                        Violation(
+                            Condition.LIGHT_HIGH, 6000.1, 6000.0, "lux", dropout_at
+                        ),
+                    ),
                     prolonged_violations=(),
                 )
             )
             repository.finish_session("first", dropout_at)
             _stored_session(repository, "second", 29.0, 22.40)
             demo = create_demo_dependencies(database)
-            client = create_app(dependencies=WebDependencies(
-                session_repository=repository,
-                report_generator=demo.report_generator,
-                artwork_workflow=demo.artwork_workflow,
-                transport_workflow=demo.transport_workflow,
-                runtime_capabilities=demo.runtime_capabilities,
-            )).test_client()
+            client = create_app(
+                dependencies=WebDependencies(
+                    session_repository=repository,
+                    report_generator=demo.report_generator,
+                    artwork_workflow=demo.artwork_workflow,
+                    transport_workflow=demo.transport_workflow,
+                    runtime_capabilities=demo.runtime_capabilities,
+                )
+            ).test_client()
 
             response = client.get("/api/sessions/first/dashboard-data")
 
@@ -150,7 +225,9 @@ class WebAppTests(unittest.TestCase):
             self.assertEqual(data["records"][0]["gps"]["status"], "fix")
             self.assertEqual(data["records"][1]["gps"]["status"], "no_fix")
             self.assertIsNone(data["records"][1]["gps"]["latitude"])
-            self.assertEqual(data["records"][1]["immediate_violations"][0]["condition"], "light_high")
+            self.assertEqual(
+                data["records"][1]["immediate_violations"][0]["condition"], "light_high"
+            )
             other = client.get("/api/sessions/second/dashboard-data").get_json()
             self.assertEqual(other["session_id"], "second")
             self.assertEqual(len(other["records"]), 1)
@@ -159,17 +236,41 @@ class WebAppTests(unittest.TestCase):
     def test_dashboard_capabilities_are_declared_by_dependencies(self) -> None:
         with TemporaryDirectory() as temporary:
             demo = create_demo_dependencies(Path(temporary) / "web.sqlite3")
-            simulated = create_app(dependencies=demo).test_client().get("/api/dashboard/capabilities").get_json()
-            self.assertEqual(simulated["components"]["sensors"], {"state": "simulated", "physical_validation": "not_validated"})
-            self.assertEqual(simulated["components"]["gps"], {"state": "simulated", "physical_validation": "not_validated"})
-            self.assertEqual(simulated["components"]["storage"], {"state": "available", "physical_validation": "not_applicable"})
+            simulated = (
+                create_app(dependencies=demo)
+                .test_client()
+                .get("/api/dashboard/capabilities")
+                .get_json()
+            )
+            self.assertEqual(
+                simulated["components"]["sensors"],
+                {"state": "simulated", "physical_validation": "not_validated"},
+            )
+            self.assertEqual(
+                simulated["components"]["gps"],
+                {"state": "simulated", "physical_validation": "not_validated"},
+            )
+            self.assertEqual(
+                simulated["components"]["storage"],
+                {"state": "available", "physical_validation": "not_applicable"},
+            )
 
             validated = RuntimeCapabilities(
-                sensors=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED),
-                gps=ComponentCapability(CapabilityState.UNAVAILABLE, PhysicalValidation.NOT_VALIDATED),
-                artwork=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED),
-                storage=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE),
-                realtime=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE),
+                sensors=ComponentCapability(
+                    CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED
+                ),
+                gps=ComponentCapability(
+                    CapabilityState.UNAVAILABLE, PhysicalValidation.NOT_VALIDATED
+                ),
+                artwork=ComponentCapability(
+                    CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED
+                ),
+                storage=ComponentCapability(
+                    CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE
+                ),
+                realtime=ComponentCapability(
+                    CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE
+                ),
             )
             configured = WebDependencies(
                 session_repository=demo.session_repository,
@@ -178,17 +279,30 @@ class WebAppTests(unittest.TestCase):
                 transport_workflow=demo.transport_workflow,
                 runtime_capabilities=validated,
             )
-            payload = create_app(dependencies=configured).test_client().get("/api/dashboard/capabilities").get_json()
-            self.assertEqual(payload["components"]["sensors"]["physical_validation"], "validated")
+            payload = (
+                create_app(dependencies=configured)
+                .test_client()
+                .get("/api/dashboard/capabilities")
+                .get_json()
+            )
+            self.assertEqual(
+                payload["components"]["sensors"]["physical_validation"], "validated"
+            )
             self.assertEqual(payload["components"]["gps"]["state"], "unavailable")
 
     def test_unknown_sessions_and_invalid_transport_request_are_rejected(self) -> None:
         with TemporaryDirectory() as temporary:
             client = self._app(Path(temporary)).test_client()
 
-            self.assertEqual(client.get("/api/report/data?session_id=missing").status_code, 404)
-            self.assertEqual(client.get("/api/gps/history?session_id=missing").status_code, 404)
-            self.assertEqual(client.get("/api/sessions/missing/dashboard-data").status_code, 404)
+            self.assertEqual(
+                client.get("/api/report/data?session_id=missing").status_code, 404
+            )
+            self.assertEqual(
+                client.get("/api/gps/history?session_id=missing").status_code, 404
+            )
+            self.assertEqual(
+                client.get("/api/sessions/missing/dashboard-data").status_code, 404
+            )
             self.assertEqual(client.post("/transport/start", json={}).status_code, 400)
 
     def test_separate_factories_have_no_artwork_state_leakage(self) -> None:
@@ -201,10 +315,20 @@ class WebAppTests(unittest.TestCase):
             for _ in range(5):
                 first_client.post("/check/step")
 
-            self.assertEqual(first_client.get("/check/status").get_json()["artworks"][0]["status"], "in")
-            self.assertEqual(second.test_client().get("/check/status").get_json()["artworks"][0]["status"], "out")
+            self.assertEqual(
+                first_client.get("/check/status").get_json()["artworks"][0]["status"],
+                "in",
+            )
+            self.assertEqual(
+                second.test_client()
+                .get("/check/status")
+                .get_json()["artworks"][0]["status"],
+                "out",
+            )
 
-    def test_importing_and_creating_apps_loads_no_hardware_or_background_thread(self) -> None:
+    def test_importing_and_creating_apps_loads_no_hardware_or_background_thread(
+        self,
+    ) -> None:
         project_root = Path(__file__).resolve().parents[1]
         result = subprocess.run(
             [
@@ -217,7 +341,15 @@ class WebAppTests(unittest.TestCase):
                 "print('safe')",
             ],
             cwd=project_root,
-            env={**os.environ, "PYTHONPATH": os.pathsep.join([str(project_root / "src"), "/private/tmp/artwork-monitor-task10-flask"])},
+            env={
+                **os.environ,
+                "PYTHONPATH": os.pathsep.join(
+                    [
+                        str(project_root / "src"),
+                        "/private/tmp/artwork-monitor-task10-flask",
+                    ]
+                ),
+            },
             capture_output=True,
             text=True,
             check=False,

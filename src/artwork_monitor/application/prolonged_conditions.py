@@ -62,7 +62,10 @@ class ProlongedConditionTracker:
                 continue
 
             episode = self._episodes.setdefault(condition, _Episode(monotonic_seconds))
-            if not episode.alert_emitted and monotonic_seconds - episode.started_at >= self._duration_seconds:
+            if (
+                not episode.alert_emitted
+                and monotonic_seconds - episode.started_at >= self._duration_seconds
+            ):
                 episode.alert_emitted = True
                 ready.append(violation)
 

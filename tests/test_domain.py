@@ -18,16 +18,24 @@ def reading(**values: float | None) -> SensorReading:
 
 class EnvironmentalThresholdTests(unittest.TestCase):
     def test_temperature_boundaries_are_normal_and_outside_values_violate(self) -> None:
-        self.assertEqual(self._conditions(temperature_c=17.9), (Condition.TEMPERATURE_LOW,))
+        self.assertEqual(
+            self._conditions(temperature_c=17.9), (Condition.TEMPERATURE_LOW,)
+        )
         self.assertEqual(self._conditions(temperature_c=18.0), ())
         self.assertEqual(self._conditions(temperature_c=27.0), ())
-        self.assertEqual(self._conditions(temperature_c=27.1), (Condition.TEMPERATURE_HIGH,))
+        self.assertEqual(
+            self._conditions(temperature_c=27.1), (Condition.TEMPERATURE_HIGH,)
+        )
 
     def test_humidity_boundaries_are_normal_and_outside_values_violate(self) -> None:
-        self.assertEqual(self._conditions(humidity_percent_rh=24.9), (Condition.HUMIDITY_LOW,))
+        self.assertEqual(
+            self._conditions(humidity_percent_rh=24.9), (Condition.HUMIDITY_LOW,)
+        )
         self.assertEqual(self._conditions(humidity_percent_rh=25.0), ())
         self.assertEqual(self._conditions(humidity_percent_rh=75.0), ())
-        self.assertEqual(self._conditions(humidity_percent_rh=75.1), (Condition.HUMIDITY_HIGH,))
+        self.assertEqual(
+            self._conditions(humidity_percent_rh=75.1), (Condition.HUMIDITY_HIGH,)
+        )
 
     def test_light_maximum_is_strict(self) -> None:
         self.assertEqual(self._conditions(light_lux=6000.0), ())
@@ -36,20 +44,28 @@ class EnvironmentalThresholdTests(unittest.TestCase):
     def test_missing_values_are_not_environmental_violations(self) -> None:
         self.assertEqual(evaluate_reading(reading()), ())
         self.assertEqual(
-            evaluate_reading(reading(temperature_c=None, humidity_percent_rh=None, light_lux=None)),
+            evaluate_reading(
+                reading(temperature_c=None, humidity_percent_rh=None, light_lux=None)
+            ),
             (),
         )
 
     def test_multiple_conditions_are_retained(self) -> None:
-        violations = evaluate_reading(reading(temperature_c=17.9, humidity_percent_rh=75.1, light_lux=6000.1))
+        violations = evaluate_reading(
+            reading(temperature_c=17.9, humidity_percent_rh=75.1, light_lux=6000.1)
+        )
         self.assertEqual(
             tuple(violation.condition for violation in violations),
             (Condition.TEMPERATURE_LOW, Condition.HUMIDITY_HIGH, Condition.LIGHT_HIGH),
         )
-        self.assertTrue(all(violation.occurred_at == TIMESTAMP for violation in violations))
+        self.assertTrue(
+            all(violation.occurred_at == TIMESTAMP for violation in violations)
+        )
 
     def _conditions(self, **values: float) -> tuple[Condition, ...]:
-        return tuple(violation.condition for violation in evaluate_reading(reading(**values)))
+        return tuple(
+            violation.condition for violation in evaluate_reading(reading(**values))
+        )
 
 
 class MotionTests(unittest.TestCase):

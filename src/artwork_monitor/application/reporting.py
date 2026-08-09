@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from artwork_monitor.domain import GPSFix, StoredTransportSession, Violation, format_hong_kong_timestamp
+from artwork_monitor.domain import (
+    GPSFix,
+    StoredTransportSession,
+    Violation,
+    format_hong_kong_timestamp,
+)
 from artwork_monitor.ports import TransportSessionRepository
 
 
@@ -91,14 +96,28 @@ class SessionReportGenerator:
         return SessionReport(
             session_id=session.session_id,
             started_at=format_hong_kong_timestamp(session.started_at),
-            ended_at=format_hong_kong_timestamp(session.ended_at) if session.ended_at else None,
+            ended_at=format_hong_kong_timestamp(session.ended_at)
+            if session.ended_at
+            else None,
             duration_seconds=duration_seconds,
             monitoring_cycle_count=len(records),
-            temperature=_numeric_summary("temperature", "°C", [record.reading.temperature_c for record in records]),
-            humidity=_numeric_summary("humidity", "%RH", [record.reading.humidity_percent_rh for record in records]),
-            light=_numeric_summary("light", "lux", [record.reading.light_lux for record in records]),
+            temperature=_numeric_summary(
+                "temperature",
+                "°C",
+                [record.reading.temperature_c for record in records],
+            ),
+            humidity=_numeric_summary(
+                "humidity",
+                "%RH",
+                [record.reading.humidity_percent_rh for record in records],
+            ),
+            light=_numeric_summary(
+                "light", "lux", [record.reading.light_lux for record in records]
+            ),
             gravity_deviation=_numeric_summary(
-                "gravity deviation", "g", [record.reading.gravity_deviation_g for record in records]
+                "gravity deviation",
+                "g",
+                [record.reading.gravity_deviation_g for record in records],
             ),
             immediate_violations=immediate,
             prolonged_violations=prolonged,
@@ -123,7 +142,12 @@ def render_markdown(report: SessionReport) -> str:
         "| Measurement | Min | Max | Mean | Valid | Missing |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for summary in (report.temperature, report.humidity, report.light, report.gravity_deviation):
+    for summary in (
+        report.temperature,
+        report.humidity,
+        report.light,
+        report.gravity_deviation,
+    ):
         lines.append(
             f"| {summary.metric} ({summary.unit}) | {_number(summary.minimum)} | {_number(summary.maximum)} | "
             f"{_number(summary.mean)} | {summary.valid_count} | {summary.missing_count} |"
@@ -144,12 +168,18 @@ def render_markdown(report: SessionReport) -> str:
         ]
     )
     if report.gps.first_available_fix is not None:
-        lines.append(f"- First available fix: {_gps_text(report.gps.first_available_fix)}")
-        lines.append(f"- Last available fix: {_gps_text(report.gps.last_available_fix)}")
+        lines.append(
+            f"- First available fix: {_gps_text(report.gps.first_available_fix)}"
+        )
+        lines.append(
+            f"- Last available fix: {_gps_text(report.gps.last_available_fix)}"
+        )
     return "\n".join(lines) + "\n"
 
 
-def _numeric_summary(metric: str, unit: str, values: list[float | None]) -> NumericSummary:
+def _numeric_summary(
+    metric: str, unit: str, values: list[float | None]
+) -> NumericSummary:
     valid_values = [value for value in values if value is not None]
     return NumericSummary(
         metric=metric,
@@ -173,8 +203,16 @@ def _report_violation(violation: Violation) -> ReportViolation:
 
 
 def _gps_summary(records: tuple) -> GPSReportSummary:
-    available_fixes = [record.gps_fix for record in records if record.gps_fix is not None and record.gps_fix.is_available]
-    no_fix_count = sum(1 for record in records if record.gps_fix is not None and not record.gps_fix.is_available)
+    available_fixes = [
+        record.gps_fix
+        for record in records
+        if record.gps_fix is not None and record.gps_fix.is_available
+    ]
+    no_fix_count = sum(
+        1
+        for record in records
+        if record.gps_fix is not None and not record.gps_fix.is_available
+    )
     missing_fix_count = sum(1 for record in records if record.gps_fix is None)
     return GPSReportSummary(
         available_fix_count=len(available_fixes),
@@ -186,7 +224,11 @@ def _gps_summary(records: tuple) -> GPSReportSummary:
 
 
 def _duration_text(duration_seconds: float | None) -> str:
-    return f"{duration_seconds:.3f} seconds" if duration_seconds is not None else "not recorded"
+    return (
+        f"{duration_seconds:.3f} seconds"
+        if duration_seconds is not None
+        else "not recorded"
+    )
 
 
 def _number(value: float | None) -> str:

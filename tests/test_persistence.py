@@ -5,7 +5,10 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from artwork_monitor.adapters.persistence import CsvTransportSessionExporter, SQLiteTransportSessionRepository
+from artwork_monitor.adapters.persistence import (
+    CsvTransportSessionExporter,
+    SQLiteTransportSessionRepository,
+)
 from artwork_monitor.adapters.simulated import SequenceSensorSource
 from artwork_monitor.application import MonitoringService
 from artwork_monitor.domain import Condition, SensorReading, TransportSession
@@ -21,13 +24,35 @@ def reading(*, timestamp: datetime, **values: float | None) -> SensorReading:
 class TransportSessionPersistenceTests(unittest.TestCase):
     def test_sqlite_readback_retains_normal_and_violation_records(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            repository = SQLiteTransportSessionRepository(Path(temporary_directory) / "monitoring.sqlite3")
+            repository = SQLiteTransportSessionRepository(
+                Path(temporary_directory) / "monitoring.sqlite3"
+            )
             source = SequenceSensorSource(
                 (
-                    reading(timestamp=UTC_START, temperature_c=27.1, humidity_percent_rh=50.0, light_lux=500.0),
-                    reading(timestamp=UTC_START + timedelta(seconds=2), temperature_c=27.1, humidity_percent_rh=50.0, light_lux=500.0),
-                    reading(timestamp=UTC_START + timedelta(seconds=4), temperature_c=27.1, humidity_percent_rh=50.0, light_lux=500.0),
-                    reading(timestamp=UTC_START + timedelta(seconds=6), temperature_c=27.1, humidity_percent_rh=50.0, light_lux=500.0),
+                    reading(
+                        timestamp=UTC_START,
+                        temperature_c=27.1,
+                        humidity_percent_rh=50.0,
+                        light_lux=500.0,
+                    ),
+                    reading(
+                        timestamp=UTC_START + timedelta(seconds=2),
+                        temperature_c=27.1,
+                        humidity_percent_rh=50.0,
+                        light_lux=500.0,
+                    ),
+                    reading(
+                        timestamp=UTC_START + timedelta(seconds=4),
+                        temperature_c=27.1,
+                        humidity_percent_rh=50.0,
+                        light_lux=500.0,
+                    ),
+                    reading(
+                        timestamp=UTC_START + timedelta(seconds=6),
+                        temperature_c=27.1,
+                        humidity_percent_rh=50.0,
+                        light_lux=500.0,
+                    ),
                 )
             )
             service = MonitoringService(source, session_repository=repository)
@@ -40,16 +65,36 @@ class TransportSessionPersistenceTests(unittest.TestCase):
 
         self.assertEqual(len(stored.records), 4)
         self.assertEqual(stored.records[0].sequence, 0)
-        self.assertEqual(stored.records[0].immediate_violations[0].condition, Condition.TEMPERATURE_HIGH)
-        self.assertEqual(stored.records[1].immediate_violations[0].condition, Condition.TEMPERATURE_HIGH)
-        self.assertEqual(stored.records[2].prolonged_violations[0].condition, Condition.TEMPERATURE_HIGH)
+        self.assertEqual(
+            stored.records[0].immediate_violations[0].condition,
+            Condition.TEMPERATURE_HIGH,
+        )
+        self.assertEqual(
+            stored.records[1].immediate_violations[0].condition,
+            Condition.TEMPERATURE_HIGH,
+        )
+        self.assertEqual(
+            stored.records[2].prolonged_violations[0].condition,
+            Condition.TEMPERATURE_HIGH,
+        )
         self.assertEqual(stored.session.ended_at, UTC_START + timedelta(seconds=8))
 
     def test_normal_reading_persists_without_a_violation(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            repository = SQLiteTransportSessionRepository(Path(temporary_directory) / "monitoring.sqlite3")
+            repository = SQLiteTransportSessionRepository(
+                Path(temporary_directory) / "monitoring.sqlite3"
+            )
             service = MonitoringService(
-                SequenceSensorSource((reading(timestamp=UTC_START, temperature_c=22.0, humidity_percent_rh=50.0, light_lux=500.0),)),
+                SequenceSensorSource(
+                    (
+                        reading(
+                            timestamp=UTC_START,
+                            temperature_c=22.0,
+                            humidity_percent_rh=50.0,
+                            light_lux=500.0,
+                        ),
+                    )
+                ),
                 session_repository=repository,
             )
             service.start(TransportSession("normal", UTC_START))
@@ -60,12 +105,16 @@ class TransportSessionPersistenceTests(unittest.TestCase):
         self.assertEqual(stored.records[0].reading.temperature_c, 22.0)
         self.assertEqual(stored.records[0].immediate_violations, ())
 
-    def test_persisted_timestamps_are_hong_kong_iso_strings_and_not_monotonic_values(self) -> None:
+    def test_persisted_timestamps_are_hong_kong_iso_strings_and_not_monotonic_values(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             database_path = Path(temporary_directory) / "monitoring.sqlite3"
             repository = SQLiteTransportSessionRepository(database_path)
             service = MonitoringService(
-                SequenceSensorSource((reading(timestamp=UTC_START, temperature_c=22.0),)),
+                SequenceSensorSource(
+                    (reading(timestamp=UTC_START, temperature_c=22.0),)
+                ),
                 session_repository=repository,
             )
             service.start(TransportSession("timezone", UTC_START))
@@ -74,22 +123,44 @@ class TransportSessionPersistenceTests(unittest.TestCase):
 
             connection = sqlite3.connect(database_path)
             try:
-                session_row = connection.execute("SELECT started_at, ended_at FROM transport_sessions").fetchone()
-                cycle_row = connection.execute("SELECT reading_timestamp FROM monitoring_cycles").fetchone()
-                columns = {row[1] for row in connection.execute("PRAGMA table_info(monitoring_cycles)")}
+                session_row = connection.execute(
+                    "SELECT started_at, ended_at FROM transport_sessions"
+                ).fetchone()
+                cycle_row = connection.execute(
+                    "SELECT reading_timestamp FROM monitoring_cycles"
+                ).fetchone()
+                columns = {
+                    row[1]
+                    for row in connection.execute(
+                        "PRAGMA table_info(monitoring_cycles)"
+                    )
+                }
             finally:
                 connection.close()
 
-        self.assertEqual(session_row, ("2026-08-08T12:00:00+08:00", "2026-08-08T12:00:02+08:00"))
+        self.assertEqual(
+            session_row, ("2026-08-08T12:00:00+08:00", "2026-08-08T12:00:02+08:00")
+        )
         self.assertEqual(cycle_row, ("2026-08-08T12:00:00+08:00",))
         self.assertNotIn("monotonic_seconds", columns)
 
-    def test_missing_values_round_trip_as_null_and_export_as_blank_csv_cells(self) -> None:
+    def test_missing_values_round_trip_as_null_and_export_as_blank_csv_cells(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = SQLiteTransportSessionRepository(root / "monitoring.sqlite3")
             service = MonitoringService(
-                SequenceSensorSource((reading(timestamp=UTC_START, temperature_c=None, humidity_percent_rh=None, light_lux=None),)),
+                SequenceSensorSource(
+                    (
+                        reading(
+                            timestamp=UTC_START,
+                            temperature_c=None,
+                            humidity_percent_rh=None,
+                            light_lux=None,
+                        ),
+                    )
+                ),
                 session_repository=repository,
             )
             service.start(TransportSession("missing-values", UTC_START))
@@ -110,12 +181,17 @@ class TransportSessionPersistenceTests(unittest.TestCase):
 
     def test_sessions_are_isolated_and_new_session_state_does_not_leak(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            repository = SQLiteTransportSessionRepository(Path(temporary_directory) / "monitoring.sqlite3")
+            repository = SQLiteTransportSessionRepository(
+                Path(temporary_directory) / "monitoring.sqlite3"
+            )
             service = MonitoringService(
                 SequenceSensorSource(
                     (
                         reading(timestamp=UTC_START, temperature_c=27.1),
-                        reading(timestamp=UTC_START + timedelta(seconds=2), temperature_c=30.0),
+                        reading(
+                            timestamp=UTC_START + timedelta(seconds=2),
+                            temperature_c=30.0,
+                        ),
                     )
                 ),
                 session_repository=repository,
@@ -144,7 +220,9 @@ class TransportSessionPersistenceTests(unittest.TestCase):
             root = Path(temporary_directory)
             repository = SQLiteTransportSessionRepository(root / "monitoring.sqlite3")
             service = MonitoringService(
-                SequenceSensorSource((reading(timestamp=UTC_START, temperature_c=27.1),)),
+                SequenceSensorSource(
+                    (reading(timestamp=UTC_START, temperature_c=27.1),)
+                ),
                 session_repository=repository,
             )
             service.start(TransportSession("csv-session", UTC_START))

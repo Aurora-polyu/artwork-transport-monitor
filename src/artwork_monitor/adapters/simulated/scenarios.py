@@ -28,7 +28,12 @@ def normal_transport() -> SensorScenario:
         "normal_transport",
         (
             _reading(temperature_c=22.0, humidity_percent_rh=50.0, light_lux=500.0),
-            _reading(offset_seconds=1, temperature_c=22.2, humidity_percent_rh=50.5, light_lux=520.0),
+            _reading(
+                offset_seconds=1,
+                temperature_c=22.2,
+                humidity_percent_rh=50.5,
+                light_lux=520.0,
+            ),
         ),
     )
 
@@ -62,14 +67,29 @@ def missing_sensor_reading() -> SensorScenario:
 def gravity_deviation_example() -> SensorScenario:
     return SensorScenario(
         "gravity_deviation_example",
-        (_reading(acceleration_x_g=0.0, acceleration_y_g=0.0, acceleration_z_g=1.2, gravity_deviation_g=0.2),),
+        (
+            _reading(
+                acceleration_x_g=0.0,
+                acceleration_y_g=0.0,
+                acceleration_z_g=1.2,
+                gravity_deviation_g=0.2,
+            ),
+        ),
     )
 
 
 def dark_environment_with_acceleration() -> SensorScenario:
     return SensorScenario(
         "dark_environment_with_acceleration",
-        (_reading(light_lux=0.0, acceleration_x_g=0.0, acceleration_y_g=0.0, acceleration_z_g=1.2, gravity_deviation_g=0.2),),
+        (
+            _reading(
+                light_lux=0.0,
+                acceleration_x_g=0.0,
+                acceleration_y_g=0.0,
+                acceleration_z_g=1.2,
+                gravity_deviation_g=0.2,
+            ),
+        ),
     )
 
 

@@ -50,8 +50,12 @@ class RuntimeCapabilities:
     def simulation(cls) -> "RuntimeCapabilities":
         """Describe the supplied software-only demonstration dependencies."""
 
-        simulated = ComponentCapability(CapabilityState.SIMULATED, PhysicalValidation.NOT_VALIDATED)
-        available = ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE)
+        simulated = ComponentCapability(
+            CapabilityState.SIMULATED, PhysicalValidation.NOT_VALIDATED
+        )
+        available = ComponentCapability(
+            CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE
+        )
         return cls(
             sensors=simulated,
             gps=simulated,

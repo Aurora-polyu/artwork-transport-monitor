@@ -16,7 +16,11 @@ from artwork_monitor.domain import (
     TransportSession,
 )
 
-from ._serialization import timestamp_to_hong_kong_iso, violations_from_json, violations_to_json
+from ._serialization import (
+    timestamp_to_hong_kong_iso,
+    violations_from_json,
+    violations_to_json,
+)
 
 
 class SQLiteTransportSessionRepository:
@@ -34,7 +38,9 @@ class SQLiteTransportSessionRepository:
                 (
                     session.session_id,
                     timestamp_to_hong_kong_iso(session.started_at),
-                    timestamp_to_hong_kong_iso(session.ended_at) if session.ended_at else None,
+                    timestamp_to_hong_kong_iso(session.ended_at)
+                    if session.ended_at
+                    else None,
                 ),
             )
 
@@ -99,9 +105,14 @@ class SQLiteTransportSessionRepository:
         session = TransportSession(
             session_id=session_row["session_id"],
             started_at=datetime.fromisoformat(session_row["started_at"]),
-            ended_at=datetime.fromisoformat(session_row["ended_at"]) if session_row["ended_at"] else None,
+            ended_at=datetime.fromisoformat(session_row["ended_at"])
+            if session_row["ended_at"]
+            else None,
         )
-        return StoredTransportSession(session=session, records=tuple(self._record_from_row(row) for row in record_rows))
+        return StoredTransportSession(
+            session=session,
+            records=tuple(self._record_from_row(row) for row in record_rows),
+        )
 
     def list_session_ids(self) -> tuple[str, ...]:
         """Return persisted sessions newest first for explicit UI selection."""

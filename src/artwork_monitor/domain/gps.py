@@ -25,7 +25,9 @@ class GPSFix:
         has_coordinates = self.latitude is not None and self.longitude is not None
         if self.status is GPSFixStatus.FIX and not has_coordinates:
             raise ValueError("a GPS fix requires latitude and longitude")
-        if self.status is GPSFixStatus.NO_FIX and (self.latitude is not None or self.longitude is not None):
+        if self.status is GPSFixStatus.NO_FIX and (
+            self.latitude is not None or self.longitude is not None
+        ):
             raise ValueError("a no-fix GPS state cannot have coordinates")
 
     @classmethod

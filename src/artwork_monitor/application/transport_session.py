@@ -63,7 +63,9 @@ class TransportSessionWorkflow:
         """Start a fresh session with an explicit identity and start timestamp."""
 
         if self._state is TransportSessionState.RUNNING:
-            raise RuntimeError("cannot start a new transport session while one is running")
+            raise RuntimeError(
+                "cannot start a new transport session while one is running"
+            )
         self._monitoring_service.start(session)
         self._session = session
         self._cycles = []
@@ -94,7 +96,9 @@ class TransportSessionWorkflow:
         assert self._session is not None
         self._monitoring_service.stop(ended_at)
         stored_session = self._session_repository.load_session(self._session.session_id)
-        csv_path = self._csv_exporter.export(stored_session) if self._csv_exporter else None
+        csv_path = (
+            self._csv_exporter.export(stored_session) if self._csv_exporter else None
+        )
         report = self._report_generator.generate(stored_session)
         self._state = TransportSessionState.COMPLETED
         return CompletedTransportSession(

@@ -3,7 +3,10 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from artwork_monitor.adapters.simulated import SequenceGPSFixSource, SequenceSensorSource
+from artwork_monitor.adapters.simulated import (
+    SequenceGPSFixSource,
+    SequenceSensorSource,
+)
 from artwork_monitor.adapters.simulated import scenarios
 from artwork_monitor.domain import GPSFixStatus
 from artwork_monitor.ports import GPSFixSource, SensorSource
@@ -32,12 +35,21 @@ class SimulatedSensorSourceTests(unittest.TestCase):
 
     def test_scenarios_contain_intended_normal_and_abnormal_values(self) -> None:
         self.assertEqual(scenarios.normal_transport().readings[0].temperature_c, 22.0)
-        self.assertEqual(scenarios.excessive_temperature().readings[0].temperature_c, 27.1)
-        self.assertEqual(scenarios.high_humidity().readings[0].humidity_percent_rh, 75.1)
+        self.assertEqual(
+            scenarios.excessive_temperature().readings[0].temperature_c, 27.1
+        )
+        self.assertEqual(
+            scenarios.high_humidity().readings[0].humidity_percent_rh, 75.1
+        )
         self.assertEqual(scenarios.excessive_light().readings[0].light_lux, 6000.1)
-        self.assertEqual(scenarios.gravity_deviation_example().readings[0].gravity_deviation_g, 0.2)
+        self.assertEqual(
+            scenarios.gravity_deviation_example().readings[0].gravity_deviation_g, 0.2
+        )
         multiple = scenarios.multiple_environmental_violations().readings[0]
-        self.assertEqual((multiple.temperature_c, multiple.humidity_percent_rh, multiple.light_lux), (17.9, 75.1, 6000.1))
+        self.assertEqual(
+            (multiple.temperature_c, multiple.humidity_percent_rh, multiple.light_lux),
+            (17.9, 75.1, 6000.1),
+        )
 
     def test_dark_scenario_keeps_acceleration_and_gravity_deviation(self) -> None:
         reading = scenarios.dark_environment_with_acceleration().readings[0]

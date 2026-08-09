@@ -24,7 +24,9 @@ class RuntimeProfile(str, Enum):
             return cls(normalized)
         except ValueError as error:
             choices = ", ".join(profile.value for profile in cls)
-            raise ValueError(f"Unknown runtime profile {value!r}; choose one of: {choices}") from error
+            raise ValueError(
+                f"Unknown runtime profile {value!r}; choose one of: {choices}"
+            ) from error
 
 
 def _source_project_root() -> Path:

@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from artwork_monitor.domain import SessionMonitoringRecord, StoredTransportSession, Violation, format_hong_kong_timestamp
+from artwork_monitor.domain import (
+    SessionMonitoringRecord,
+    StoredTransportSession,
+    Violation,
+    format_hong_kong_timestamp,
+)
 
 
 def timestamp(value: datetime) -> str:
@@ -40,14 +45,20 @@ def monitoring_record(record: SessionMonitoringRecord) -> dict[str, Any]:
             "light_lux": reading.light_lux,
             "gravity_deviation_g": reading.gravity_deviation_g,
         },
-        "gps": None if gps_fix is None else {
+        "gps": None
+        if gps_fix is None
+        else {
             "timestamp": timestamp(gps_fix.timestamp),
             "status": gps_fix.status.value,
             "latitude": gps_fix.latitude,
             "longitude": gps_fix.longitude,
         },
-        "immediate_violations": [violation(item) for item in record.immediate_violations],
-        "prolonged_violations": [violation(item) for item in record.prolonged_violations],
+        "immediate_violations": [
+            violation(item) for item in record.immediate_violations
+        ],
+        "prolonged_violations": [
+            violation(item) for item in record.prolonged_violations
+        ],
     }
 
 

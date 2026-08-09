@@ -14,7 +14,12 @@ from artwork_monitor.adapters.simulated import (
     SequenceSensorSource,
 )
 from artwork_monitor.adapters.simulated.scenarios import gps_route, normal_transport
-from artwork_monitor.application import ArtworkWorkflow, MonitoringService, SessionReportGenerator, TransportSessionWorkflow
+from artwork_monitor.application import (
+    ArtworkWorkflow,
+    MonitoringService,
+    SessionReportGenerator,
+    TransportSessionWorkflow,
+)
 from artwork_monitor.domain import InferenceResult
 from artwork_monitor.ports import CameraFrame, TransportSessionRepository
 
@@ -47,9 +52,13 @@ def create_demo_dependencies(database_path: Path) -> WebDependencies:
         session_repository=repository,
         report_generator=SessionReportGenerator(),
         artwork_workflow=ArtworkWorkflow(
-            camera_source=SequenceCameraSource(CameraFrame(f"web-demo-{index}") for index in range(1, 11)),
+            camera_source=SequenceCameraSource(
+                CameraFrame(f"web-demo-{index}") for index in range(1, 11)
+            ),
             preprocessor=PassthroughImagePreprocessor(),
-            detector=SequenceDetector((InferenceResult(0, 0.99), InferenceResult(1, 0.99))),
+            detector=SequenceDetector(
+                (InferenceResult(0, 0.99), InferenceResult(1, 0.99))
+            ),
         ),
         transport_workflow=TransportSessionWorkflow(monitoring, repository),
         runtime_capabilities=RuntimeCapabilities.simulation(),

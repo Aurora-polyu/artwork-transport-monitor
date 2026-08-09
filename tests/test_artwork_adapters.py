@@ -21,7 +21,9 @@ class ArtworkAdapterTests(unittest.TestCase):
         assert first is not None
         self.assertEqual(first.frame_id, "first")
         self.assertEqual(preprocessor.prepare(first).frame_id, "first")
-        self.assertEqual(detector.infer(preprocessor.prepare(first)), InferenceResult(0, 0.99))
+        self.assertEqual(
+            detector.infer(preprocessor.prepare(first)), InferenceResult(0, 0.99)
+        )
         self.assertIsNone(detector.infer(preprocessor.prepare(first)))
         self.assertIsNone(detector.infer(preprocessor.prepare(first)))
         self.assertIsNotNone(source.next_frame())
@@ -31,7 +33,9 @@ class ArtworkAdapterTests(unittest.TestCase):
         detector.reset()
 
         self.assertEqual(source.next_frame(), CameraFrame("first"))
-        self.assertEqual(detector.infer(preprocessor.prepare(first)), InferenceResult(0, 0.99))
+        self.assertEqual(
+            detector.infer(preprocessor.prepare(first)), InferenceResult(0, 0.99)
+        )
 
     def test_camera_frame_identifier_must_not_be_empty(self) -> None:
         with self.assertRaises(ValueError):

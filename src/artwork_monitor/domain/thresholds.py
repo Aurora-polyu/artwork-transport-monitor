@@ -32,24 +32,80 @@ def evaluate_reading(
 
     if reading.temperature_c is not None:
         if reading.temperature_c < limits.temperature_min_c:
-            violations.append(_violation(Condition.TEMPERATURE_LOW, reading.temperature_c, limits.temperature_min_c, "°C", reading))
+            violations.append(
+                _violation(
+                    Condition.TEMPERATURE_LOW,
+                    reading.temperature_c,
+                    limits.temperature_min_c,
+                    "°C",
+                    reading,
+                )
+            )
         elif reading.temperature_c > limits.temperature_max_c:
-            violations.append(_violation(Condition.TEMPERATURE_HIGH, reading.temperature_c, limits.temperature_max_c, "°C", reading))
+            violations.append(
+                _violation(
+                    Condition.TEMPERATURE_HIGH,
+                    reading.temperature_c,
+                    limits.temperature_max_c,
+                    "°C",
+                    reading,
+                )
+            )
 
     if reading.humidity_percent_rh is not None:
         if reading.humidity_percent_rh < limits.humidity_min_percent_rh:
-            violations.append(_violation(Condition.HUMIDITY_LOW, reading.humidity_percent_rh, limits.humidity_min_percent_rh, "%RH", reading))
+            violations.append(
+                _violation(
+                    Condition.HUMIDITY_LOW,
+                    reading.humidity_percent_rh,
+                    limits.humidity_min_percent_rh,
+                    "%RH",
+                    reading,
+                )
+            )
         elif reading.humidity_percent_rh > limits.humidity_max_percent_rh:
-            violations.append(_violation(Condition.HUMIDITY_HIGH, reading.humidity_percent_rh, limits.humidity_max_percent_rh, "%RH", reading))
+            violations.append(
+                _violation(
+                    Condition.HUMIDITY_HIGH,
+                    reading.humidity_percent_rh,
+                    limits.humidity_max_percent_rh,
+                    "%RH",
+                    reading,
+                )
+            )
 
     if reading.light_lux is not None and reading.light_lux > limits.light_max_lux:
-        violations.append(_violation(Condition.LIGHT_HIGH, reading.light_lux, limits.light_max_lux, "lux", reading))
+        violations.append(
+            _violation(
+                Condition.LIGHT_HIGH,
+                reading.light_lux,
+                limits.light_max_lux,
+                "lux",
+                reading,
+            )
+        )
 
     if reading.gravity_deviation_g is not None:
         if reading.gravity_deviation_g >= limits.gravity_deviation_excessive_g:
-            violations.append(_violation(Condition.GRAVITY_DEVIATION_EXCESSIVE, reading.gravity_deviation_g, limits.gravity_deviation_excessive_g, "g", reading))
+            violations.append(
+                _violation(
+                    Condition.GRAVITY_DEVIATION_EXCESSIVE,
+                    reading.gravity_deviation_g,
+                    limits.gravity_deviation_excessive_g,
+                    "g",
+                    reading,
+                )
+            )
         elif reading.gravity_deviation_g >= limits.gravity_deviation_moderate_g:
-            violations.append(_violation(Condition.GRAVITY_DEVIATION_MODERATE, reading.gravity_deviation_g, limits.gravity_deviation_moderate_g, "g", reading))
+            violations.append(
+                _violation(
+                    Condition.GRAVITY_DEVIATION_MODERATE,
+                    reading.gravity_deviation_g,
+                    limits.gravity_deviation_moderate_g,
+                    "g",
+                    reading,
+                )
+            )
 
     return tuple(violations)
 

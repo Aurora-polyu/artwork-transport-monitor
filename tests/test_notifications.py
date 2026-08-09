@@ -20,7 +20,10 @@ def reading(**values: float | None) -> SensorReading:
 class NotificationWorkflowTests(unittest.TestCase):
     def test_normal_session_produces_no_notification(self) -> None:
         dispatcher = InMemoryNotificationDispatcher()
-        service = self._service(dispatcher, (reading(temperature_c=22.0, humidity_percent_rh=50.0, light_lux=500.0),))
+        service = self._service(
+            dispatcher,
+            (reading(temperature_c=22.0, humidity_percent_rh=50.0, light_lux=500.0),),
+        )
 
         service.start(TransportSession("normal", TIMESTAMP))
         service.step(0.0)
@@ -44,14 +47,24 @@ class NotificationWorkflowTests(unittest.TestCase):
 
     def test_prolonged_violation_dispatches_once_after_four_seconds(self) -> None:
         dispatcher = InMemoryNotificationDispatcher()
-        service = self._service(dispatcher, tuple(reading(temperature_c=27.1) for _ in range(4)))
+        service = self._service(
+            dispatcher, tuple(reading(temperature_c=27.1) for _ in range(4))
+        )
 
         service.start(TransportSession("prolonged", TIMESTAMP))
         for monotonic_seconds in (0.0, 2.0, 4.0, 6.0):
             service.step(monotonic_seconds)
 
-        immediate = [message for message in dispatcher.messages if message.kind is NotificationKind.IMMEDIATE]
-        prolonged = [message for message in dispatcher.messages if message.kind is NotificationKind.PROLONGED]
+        immediate = [
+            message
+            for message in dispatcher.messages
+            if message.kind is NotificationKind.IMMEDIATE
+        ]
+        prolonged = [
+            message
+            for message in dispatcher.messages
+            if message.kind is NotificationKind.PROLONGED
+        ]
         self.assertEqual(len(immediate), 4)
         self.assertEqual(len(prolonged), 1)
         self.assertEqual(prolonged[0].condition, "temperature_high")
@@ -60,7 +73,10 @@ class NotificationWorkflowTests(unittest.TestCase):
 
     def test_simultaneous_conditions_keep_deterministic_order(self) -> None:
         dispatcher = InMemoryNotificationDispatcher()
-        service = self._service(dispatcher, (reading(temperature_c=17.9, humidity_percent_rh=75.1, light_lux=6000.1),))
+        service = self._service(
+            dispatcher,
+            (reading(temperature_c=17.9, humidity_percent_rh=75.1, light_lux=6000.1),),
+        )
 
         service.start(TransportSession("multiple", TIMESTAMP))
         service.step(0.0)
@@ -76,7 +92,10 @@ class NotificationWorkflowTests(unittest.TestCase):
 
     def test_missing_reading_creates_no_invented_notification(self) -> None:
         dispatcher = InMemoryNotificationDispatcher()
-        service = self._service(dispatcher, (reading(temperature_c=None, humidity_percent_rh=None, light_lux=None),))
+        service = self._service(
+            dispatcher,
+            (reading(temperature_c=None, humidity_percent_rh=None, light_lux=None),),
+        )
 
         service.start(TransportSession("missing", TIMESTAMP))
         service.step(0.0)
@@ -85,7 +104,9 @@ class NotificationWorkflowTests(unittest.TestCase):
 
     def test_session_reset_prevents_prolonged_notification_state_leakage(self) -> None:
         dispatcher = InMemoryNotificationDispatcher()
-        service = self._service(dispatcher, (reading(temperature_c=27.1), reading(temperature_c=27.1)))
+        service = self._service(
+            dispatcher, (reading(temperature_c=27.1), reading(temperature_c=27.1))
+        )
 
         service.start(TransportSession("first", TIMESTAMP))
         service.step(0.0)
@@ -94,7 +115,11 @@ class NotificationWorkflowTests(unittest.TestCase):
         service.start(TransportSession("second", TIMESTAMP))
         service.step(0.0)
 
-        prolonged = [message for message in dispatcher.messages if message.kind is NotificationKind.PROLONGED]
+        prolonged = [
+            message
+            for message in dispatcher.messages
+            if message.kind is NotificationKind.PROLONGED
+        ]
         self.assertEqual([message.session_id for message in prolonged], ["first"])
         self.assertEqual(dispatcher.messages[-1].session_id, "second")
         self.assertEqual(dispatcher.messages[-1].kind, NotificationKind.IMMEDIATE)
@@ -122,4 +147,6 @@ class NotificationWorkflowTests(unittest.TestCase):
         dispatcher: InMemoryNotificationDispatcher,
         readings: tuple[SensorReading, ...],
     ) -> MonitoringService:
-        return MonitoringService(SequenceSensorSource(readings), notification_dispatcher=dispatcher)
+        return MonitoringService(
+            SequenceSensorSource(readings), notification_dispatcher=dispatcher
+        )

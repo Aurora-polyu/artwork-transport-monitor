@@ -51,10 +51,14 @@ class SerialNmeaGPSFixSourceTests(unittest.TestCase):
             calls.append(kwargs)
             return serial
 
-        source = SerialNmeaGPSFixSource(serial_factory=factory, parser=lambda _: _rmc("A"))
+        source = SerialNmeaGPSFixSource(
+            serial_factory=factory, parser=lambda _: _rmc("A")
+        )
         fix = source.next_fix()
 
-        self.assertEqual(calls, [{"port": "/dev/serial0", "baudrate": 9600, "timeout": 5.0}])
+        self.assertEqual(
+            calls, [{"port": "/dev/serial0", "baudrate": 9600, "timeout": 5.0}]
+        )
         assert fix is not None
         self.assertEqual(fix.status, GPSFixStatus.FIX)
         self.assertEqual((fix.latitude, fix.longitude), (22.302, 114.177))
@@ -84,8 +88,13 @@ class SerialNmeaGPSFixSourceTests(unittest.TestCase):
     def test_non_rmc_malformed_and_empty_input_return_no_new_observation(self) -> None:
         parser_calls: list[str] = []
         source = SerialNmeaGPSFixSource(
-            serial_factory=lambda **_: _Serial([b"$GPGGA,example\r\n", b"$GPRMC,bad\r\n", b""]),
-            parser=lambda line: parser_calls.append(line) or (_ for _ in ()).throw(ValueError("bad RMC")),
+            serial_factory=lambda **_: _Serial(
+                [b"$GPGGA,example\r\n", b"$GPRMC,bad\r\n", b""]
+            ),
+            parser=lambda line: (
+                parser_calls.append(line)
+                or (_ for _ in ()).throw(ValueError("bad RMC"))
+            ),
         )
 
         self.assertIsNone(source.next_fix())
@@ -95,7 +104,9 @@ class SerialNmeaGPSFixSourceTests(unittest.TestCase):
 
     def test_reset_closes_instance_owned_serial_handle(self) -> None:
         serial = _Serial([b"$GPRMC,example\r\n"])
-        source = SerialNmeaGPSFixSource(serial_factory=lambda **_: serial, parser=lambda _: _rmc())
+        source = SerialNmeaGPSFixSource(
+            serial_factory=lambda **_: serial, parser=lambda _: _rmc()
+        )
 
         source.next_fix()
         source.reset()

@@ -1,6 +1,10 @@
 import unittest
 
-from artwork_monitor.application import EnvironmentalFilters, EwmaFilter, clean_gravity_deviation
+from artwork_monitor.application import (
+    EnvironmentalFilters,
+    EwmaFilter,
+    clean_gravity_deviation,
+)
 
 
 class EwmaFilterTests(unittest.TestCase):

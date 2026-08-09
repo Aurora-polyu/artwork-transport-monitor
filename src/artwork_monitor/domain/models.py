@@ -16,9 +16,10 @@ def calculate_gravity_deviation(
 
     if None in (acceleration_x_g, acceleration_y_g, acceleration_z_g):
         return None
-    magnitude_g = sqrt(
-        acceleration_x_g**2 + acceleration_y_g**2 + acceleration_z_g**2
-    )
+    assert acceleration_x_g is not None
+    assert acceleration_y_g is not None
+    assert acceleration_z_g is not None
+    magnitude_g = sqrt(acceleration_x_g**2 + acceleration_y_g**2 + acceleration_z_g**2)
     return abs(magnitude_g - 1.0)
 
 

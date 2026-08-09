@@ -111,7 +111,9 @@ class ArtworkWorkflow:
             steps.append(step)
         return tuple(steps)
 
-    def _apply_detection(self, detection: ArtworkDetection | None) -> ArtworkTransition | None:
+    def _apply_detection(
+        self, detection: ArtworkDetection | None
+    ) -> ArtworkTransition | None:
         if detection is None:
             return None
         label_index = detection.identity.label_index
@@ -128,4 +130,6 @@ class ArtworkWorkflow:
             status = ArtworkStatus.OUT
             updated_state = replace(state, status=status, time_out=occurred_at)
         self._states[label_index] = updated_state
-        return ArtworkTransition(label_index=label_index, status=status, occurred_at=occurred_at)
+        return ArtworkTransition(
+            label_index=label_index, status=status, occurred_at=occurred_at
+        )

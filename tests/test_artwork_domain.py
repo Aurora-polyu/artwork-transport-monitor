@@ -22,22 +22,36 @@ class ArtworkDomainTests(unittest.TestCase):
 
     def test_unknown_none_and_low_confidence_results_are_not_accepted(self) -> None:
         self.assertIsNone(interpret_detection(None))
-        self.assertIsNone(interpret_detection(InferenceResult(label_index=2, confidence=1.0)))
-        self.assertIsNone(interpret_detection(InferenceResult(label_index=99, confidence=1.0)))
-        self.assertIsNone(interpret_detection(InferenceResult(label_index=1, confidence=0.949)))
+        self.assertIsNone(
+            interpret_detection(InferenceResult(label_index=2, confidence=1.0))
+        )
+        self.assertIsNone(
+            interpret_detection(InferenceResult(label_index=99, confidence=1.0))
+        )
+        self.assertIsNone(
+            interpret_detection(InferenceResult(label_index=1, confidence=0.949))
+        )
 
     def test_legacy_artworks_start_out(self) -> None:
         states = legacy_artworks()
 
-        self.assertEqual({label: state.status for label, state in states.items()}, {
-            0: ArtworkStatus.OUT,
-            1: ArtworkStatus.OUT,
-        })
+        self.assertEqual(
+            {label: state.status for label, state in states.items()},
+            {
+                0: ArtworkStatus.OUT,
+                1: ArtworkStatus.OUT,
+            },
+        )
         self.assertIsNone(states[0].time_in)
         self.assertIsNone(states[1].time_out)
 
     def test_invalid_inference_data_is_rejected(self) -> None:
-        for label_index, confidence in ((True, 0.95), ("0", 0.95), (0, math.nan), (0, math.inf)):
+        for label_index, confidence in (
+            (True, 0.95),
+            ("0", 0.95),
+            (0, math.nan),
+            (0, math.inf),
+        ):
             with self.subTest(label_index=label_index, confidence=confidence):
                 with self.assertRaises(ValueError):
                     InferenceResult(label_index=label_index, confidence=confidence)

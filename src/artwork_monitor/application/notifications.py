@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from artwork_monitor.domain import NotificationKind, NotificationMessage, Violation, format_hong_kong_timestamp
+from artwork_monitor.domain import (
+    NotificationKind,
+    NotificationMessage,
+    Violation,
+    format_hong_kong_timestamp,
+)
 
 
 def notification_messages(
@@ -15,12 +20,20 @@ def notification_messages(
 ) -> tuple[NotificationMessage, ...]:
     """Return immediate messages first, then one-shot prolonged messages."""
 
-    immediate = tuple(_message(session_id, NotificationKind.IMMEDIATE, violation) for violation in immediate_violations)
-    prolonged = tuple(_message(session_id, NotificationKind.PROLONGED, violation) for violation in prolonged_violations)
+    immediate = tuple(
+        _message(session_id, NotificationKind.IMMEDIATE, violation)
+        for violation in immediate_violations
+    )
+    prolonged = tuple(
+        _message(session_id, NotificationKind.PROLONGED, violation)
+        for violation in prolonged_violations
+    )
     return immediate + prolonged
 
 
-def _message(session_id: str, kind: NotificationKind, violation: Violation) -> NotificationMessage:
+def _message(
+    session_id: str, kind: NotificationKind, violation: Violation
+) -> NotificationMessage:
     condition = violation.condition.value
     summary = (
         f"{kind.value.capitalize()} {condition}: observed {violation.observed_value:g} "

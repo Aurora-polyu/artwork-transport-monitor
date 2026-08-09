@@ -29,7 +29,9 @@ class GpioAlarmOutputTests(unittest.TestCase):
         self.assertNotIn("RPi", sys.modules)
         self.assertNotIn("RPi.GPIO", sys.modules)
 
-    def test_owner_activation_is_idempotent_and_partial_clear_keeps_hardware_active(self) -> None:
+    def test_owner_activation_is_idempotent_and_partial_clear_keeps_hardware_active(
+        self,
+    ) -> None:
         gpio = _Gpio()
         output = GpioAlarmOutput(gpio=gpio)
 
@@ -55,5 +57,10 @@ class GpioAlarmOutputTests(unittest.TestCase):
 
         self.assertEqual(
             [call for call in gpio.calls if call[0] == "output"],
-            [("output", 18, gpio.HIGH), ("output", 18, gpio.LOW), ("output", 18, gpio.HIGH), ("output", 18, gpio.LOW)],
+            [
+                ("output", 18, gpio.HIGH),
+                ("output", 18, gpio.LOW),
+                ("output", 18, gpio.HIGH),
+                ("output", 18, gpio.LOW),
+            ],
         )

@@ -15,7 +15,14 @@ from artwork_monitor.domain import (
     Violation,
     evaluate_reading,
 )
-from artwork_monitor.ports import AlarmOutput, AlarmSource, GPSFixSource, NotificationDispatcher, SensorSource, TransportSessionRepository
+from artwork_monitor.ports import (
+    AlarmOutput,
+    AlarmSource,
+    GPSFixSource,
+    NotificationDispatcher,
+    SensorSource,
+    TransportSessionRepository,
+)
 
 from .filtering import EnvironmentalFilters, clean_gravity_deviation
 from .notifications import notification_messages
@@ -80,12 +87,22 @@ class MonitoringService:
             self._gps_source.reset()
         if self._session_repository is not None:
             if session is None:
-                raise ValueError("a transport session is required when persistence is enabled")
+                raise ValueError(
+                    "a transport session is required when persistence is enabled"
+                )
             self._session_repository.create_session(session)
         if self._notification_dispatcher is not None and session is None:
-            raise ValueError("a transport session is required when notifications are enabled")
-        if session is not None and self._session_repository is None and self._notification_dispatcher is None:
-            raise ValueError("a repository or notification dispatcher is required for a transport session")
+            raise ValueError(
+                "a transport session is required when notifications are enabled"
+            )
+        if (
+            session is not None
+            and self._session_repository is None
+            and self._notification_dispatcher is None
+        ):
+            raise ValueError(
+                "a repository or notification dispatcher is required for a transport session"
+            )
         self._session = session
         self._record_sequence = 0
         self._active = True
@@ -104,12 +121,16 @@ class MonitoringService:
         filtered_reading = SensorReading(
             timestamp=raw_reading.timestamp,
             temperature_c=self._filters.temperature.update(raw_reading.temperature_c),
-            humidity_percent_rh=self._filters.humidity.update(raw_reading.humidity_percent_rh),
+            humidity_percent_rh=self._filters.humidity.update(
+                raw_reading.humidity_percent_rh
+            ),
             light_lux=self._filters.light.update(raw_reading.light_lux),
             acceleration_x_g=raw_reading.acceleration_x_g,
             acceleration_y_g=raw_reading.acceleration_y_g,
             acceleration_z_g=raw_reading.acceleration_z_g,
-            gravity_deviation_g=clean_gravity_deviation(raw_reading.gravity_deviation_g),
+            gravity_deviation_g=clean_gravity_deviation(
+                raw_reading.gravity_deviation_g
+            ),
             inclination_degrees=raw_reading.inclination_degrees,
         )
         immediate_violations = evaluate_reading(filtered_reading, self._thresholds)
@@ -145,7 +166,12 @@ class MonitoringService:
                 prolonged_violations=prolonged_violations,
             ):
                 self._notification_dispatcher.dispatch(message)
-        self._set_transport_alarm(any(violation.condition in _BUZZER_CONDITIONS for violation in immediate_violations))
+        self._set_transport_alarm(
+            any(
+                violation.condition in _BUZZER_CONDITIONS
+                for violation in immediate_violations
+            )
+        )
         return cycle
 
     def stop(self, ended_at: datetime | None = None) -> None:
@@ -156,7 +182,9 @@ class MonitoringService:
         self._set_transport_alarm(False)
         if self._session_repository is not None and self._session is not None:
             if ended_at is None:
-                raise ValueError("an explicit ended_at timestamp is required when persistence is enabled")
+                raise ValueError(
+                    "an explicit ended_at timestamp is required when persistence is enabled"
+                )
             self._session_repository.finish_session(self._session.session_id, ended_at)
         self._session = None
         self._active = False

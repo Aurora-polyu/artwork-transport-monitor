@@ -35,6 +35,7 @@ class GpioAlarmOutput:
     def _ensure_gpio(self) -> Any:
         if self._gpio is None:
             import RPi.GPIO as GPIO
+
             self._gpio = GPIO
         if not self._initialized:
             self._gpio.setmode(self._gpio.BCM)

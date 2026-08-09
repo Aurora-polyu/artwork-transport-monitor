@@ -10,7 +10,9 @@ class SettingsTests(unittest.TestCase):
         for profile in ("test", "demo", "hardware", "full-team"):
             with self.subTest(profile=profile):
                 self.assertEqual(
-                    Settings.from_env({"ARTWORK_MONITOR_PROFILE": profile}).profile.value,
+                    Settings.from_env(
+                        {"ARTWORK_MONITOR_PROFILE": profile}
+                    ).profile.value,
                     profile,
                 )
 
@@ -38,7 +40,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.email_host, "mail.example.invalid")
         self.assertEqual(settings.email_port, 2525)
         self.assertEqual(settings.runtime_dir, (project_root / "runtime").resolve())
-        self.assertEqual(settings.database_path, (project_root / "runtime" / "state.sqlite3").resolve())
+        self.assertEqual(
+            settings.database_path,
+            (project_root / "runtime" / "state.sqlite3").resolve(),
+        )
         self.assertEqual(settings.log_dir, (project_root / "runtime" / "csv").resolve())
 
     def test_default_paths_are_project_relative_not_cwd(self) -> None:
@@ -51,7 +56,9 @@ class SettingsTests(unittest.TestCase):
             os.chdir(original_cwd)
 
         self.assertEqual(settings.runtime_dir, settings.project_root / "instance")
-        self.assertEqual(settings.database_path, settings.runtime_dir / "artwork_monitor.sqlite3")
+        self.assertEqual(
+            settings.database_path, settings.runtime_dir / "artwork_monitor.sqlite3"
+        )
         self.assertEqual(settings.log_dir, settings.runtime_dir / "transport_logs")
         self.assertNotEqual(settings.project_root, temporary_cwd.resolve())
 
