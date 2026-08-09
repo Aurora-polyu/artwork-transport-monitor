@@ -1,5 +1,6 @@
 """Pure, deterministic logic that coordinates domain rules without adapters."""
 
+from .artwork_workflow import ArtworkTransition, ArtworkWorkflow, ArtworkWorkflowStep
 from .filtering import EnvironmentalFilters, EwmaFilter, clean_gravity_deviation
 from .monitoring import MonitoringCycle, MonitoringService
 from .notifications import notification_messages
@@ -8,6 +9,9 @@ from .reporting import SessionReport, SessionReportGenerator, render_markdown
 from .transport_session import CompletedTransportSession, TransportSessionState, TransportSessionWorkflow
 
 __all__ = [
+    "ArtworkTransition",
+    "ArtworkWorkflow",
+    "ArtworkWorkflowStep",
     "EnvironmentalFilters",
     "EwmaFilter",
     "MonitoringCycle",

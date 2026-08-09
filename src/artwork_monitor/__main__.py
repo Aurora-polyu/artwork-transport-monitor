@@ -10,17 +10,27 @@ from pathlib import Path
 
 from .adapters.notifications import InMemoryNotificationDispatcher
 from .adapters.persistence import CsvTransportSessionExporter, SQLiteTransportSessionRepository
-from .adapters.simulated import SequenceSensorSource
+from .adapters.simulated import (
+    PassthroughImagePreprocessor,
+    SequenceCameraSource,
+    SequenceDetector,
+    SequenceSensorSource,
+)
 from .adapters.simulated.scenarios import normal_transport
-from .application import MonitoringService, TransportSessionWorkflow, render_markdown
+from .application import ArtworkWorkflow, MonitoringService, TransportSessionWorkflow, render_markdown
 from .config import Settings
-from .domain import TransportSession
+from .domain import InferenceResult, TransportSession
+from .ports import CameraFrame
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Artwork transportation monitoring")
     parser.add_argument("--profile", choices=("test", "demo", "hardware", "full-team"))
+    parser.add_argument("--artwork-demo", action="store_true")
     arguments = parser.parse_args()
+    if arguments.artwork_demo:
+        _run_artwork_demo()
+        return
     environment = dict(os.environ)
     if arguments.profile:
         environment["ARTWORK_MONITOR_PROFILE"] = arguments.profile
@@ -61,6 +71,24 @@ def _run_demo(settings: Settings) -> None:
     print(f"csv: {outcome.csv_path}")
     print(f"notifications: {len(dispatcher.messages)}")
     print(render_markdown(outcome.report), end="")
+
+
+def _run_artwork_demo() -> None:
+    workflow = ArtworkWorkflow(
+        camera_source=SequenceCameraSource(CameraFrame(f"demo-{number}") for number in range(1, 11)),
+        preprocessor=PassthroughImagePreprocessor(),
+        detector=SequenceDetector((InferenceResult(0, 0.99), InferenceResult(1, 0.99))),
+    )
+    workflow.start()
+    steps = workflow.run_to_exhaustion()
+
+    print("software-only artwork workflow demo")
+    for step in steps:
+        if step.transition is not None:
+            name = workflow.states()[step.transition.label_index].identity.name
+            print(f"transition: {name} -> {step.transition.status.value}")
+    for state in workflow.states().values():
+        print(f"final: {state.identity.name}: {state.status.value}")
 
 
 if __name__ == "__main__":
