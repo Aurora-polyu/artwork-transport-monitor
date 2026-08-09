@@ -213,7 +213,7 @@ class WebAppTests(unittest.TestCase):
                 "import sys, threading; before = threading.active_count(); "
                 "from artwork_monitor.web import create_app; first = create_app(); second = create_app(); "
                 "assert threading.active_count() == before; "
-                "assert not any(name.split('.')[0] in {'cv2', 'tflite_runtime', 'picamera', 'RPi', 'smbus2'} for name in sys.modules); "
+                "assert not any(name.split('.')[0] in {'cv2', 'tflite_runtime', 'picamera', 'RPi', 'smbus2', 'serial', 'pynmea2'} for name in sys.modules); "
                 "print('safe')",
             ],
             cwd=project_root,

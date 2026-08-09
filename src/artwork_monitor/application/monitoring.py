@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from artwork_monitor.domain import (
+    Condition,
     GPSFix,
     MonitoringThresholds,
     SensorReading,
@@ -14,11 +15,23 @@ from artwork_monitor.domain import (
     Violation,
     evaluate_reading,
 )
-from artwork_monitor.ports import GPSFixSource, NotificationDispatcher, SensorSource, TransportSessionRepository
+from artwork_monitor.ports import AlarmOutput, AlarmSource, GPSFixSource, NotificationDispatcher, SensorSource, TransportSessionRepository
 
 from .filtering import EnvironmentalFilters, clean_gravity_deviation
 from .notifications import notification_messages
 from .prolonged_conditions import ProlongedConditionTracker
+
+
+_BUZZER_CONDITIONS = frozenset(
+    {
+        Condition.TEMPERATURE_LOW,
+        Condition.TEMPERATURE_HIGH,
+        Condition.HUMIDITY_LOW,
+        Condition.HUMIDITY_HIGH,
+        Condition.LIGHT_HIGH,
+        Condition.GRAVITY_DEVIATION_EXCESSIVE,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +56,7 @@ class MonitoringService:
         thresholds: MonitoringThresholds | None = None,
         session_repository: TransportSessionRepository | None = None,
         notification_dispatcher: NotificationDispatcher | None = None,
+        alarm_output: AlarmOutput | None = None,
     ) -> None:
         self._sensor_source = sensor_source
         self._gps_source = gps_source
@@ -51,6 +65,7 @@ class MonitoringService:
         self._prolonged_conditions = ProlongedConditionTracker()
         self._session_repository = session_repository
         self._notification_dispatcher = notification_dispatcher
+        self._alarm_output = alarm_output
         self._session: TransportSession | None = None
         self._record_sequence = 0
         self._active = False
@@ -74,6 +89,7 @@ class MonitoringService:
         self._session = session
         self._record_sequence = 0
         self._active = True
+        self._set_transport_alarm(False)
 
     def step(self, monotonic_seconds: float) -> MonitoringCycle | None:
         """Process one input reading, or return ``None`` when sensor input ends."""
@@ -129,6 +145,7 @@ class MonitoringService:
                 prolonged_violations=prolonged_violations,
             ):
                 self._notification_dispatcher.dispatch(message)
+        self._set_transport_alarm(any(violation.condition in _BUZZER_CONDITIONS for violation in immediate_violations))
         return cycle
 
     def stop(self, ended_at: datetime | None = None) -> None:
@@ -136,9 +153,14 @@ class MonitoringService:
 
         self._filters.reset()
         self._prolonged_conditions.reset()
+        self._set_transport_alarm(False)
         if self._session_repository is not None and self._session is not None:
             if ended_at is None:
                 raise ValueError("an explicit ended_at timestamp is required when persistence is enabled")
             self._session_repository.finish_session(self._session.session_id, ended_at)
         self._session = None
         self._active = False
+
+    def _set_transport_alarm(self, active: bool) -> None:
+        if self._alarm_output is not None:
+            self._alarm_output.set_active(AlarmSource.TRANSPORT_MONITORING, active)

@@ -8,7 +8,7 @@ from artwork_monitor.domain import GPSFix
 
 
 class GPSFixSource(Protocol):
-    """Provide the next GPS state, or ``None`` when the scripted source ends."""
+    """Provide a GPS observation, or ``None`` when this pull has no new observation."""
 
     def next_fix(self) -> GPSFix | None: ...
 

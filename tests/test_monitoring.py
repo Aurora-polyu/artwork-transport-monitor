@@ -5,6 +5,7 @@ from artwork_monitor.adapters.simulated import SequenceGPSFixSource, SequenceSen
 from artwork_monitor.adapters.simulated import scenarios
 from artwork_monitor.application import MonitoringService
 from artwork_monitor.domain import Condition, GPSFixStatus, SensorReading
+from artwork_monitor.ports import AlarmSource
 
 
 TIMESTAMP = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
@@ -12,6 +13,17 @@ TIMESTAMP = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
 
 def reading(**values: float | None) -> SensorReading:
     return SensorReading(timestamp=TIMESTAMP, **values)
+
+
+class RecordingAlarmOutput:
+    def __init__(self) -> None:
+        self.calls: list[tuple[AlarmSource, bool]] = []
+
+    def set_active(self, source: AlarmSource, active: bool) -> None:
+        self.calls.append((source, active))
+
+    def reset(self) -> None:
+        raise AssertionError("MonitoringService must not globally reset an alarm output")
 
 
 class MonitoringServiceTests(unittest.TestCase):
@@ -99,6 +111,50 @@ class MonitoringServiceTests(unittest.TestCase):
         self.assertAlmostEqual(second.reading.temperature_c, 27.39)
         self.assertEqual(restarted.reading.temperature_c, 27.1)
         self.assertEqual(restarted.prolonged_violations, ())
+
+    def test_temperature_humidity_and_light_violations_activate_transport_alarm(self) -> None:
+        for values in (
+            {"temperature_c": 17.9},
+            {"humidity_percent_rh": 75.1},
+            {"light_lux": 6000.1},
+        ):
+            with self.subTest(values=values):
+                alarm = RecordingAlarmOutput()
+                service = MonitoringService(SequenceSensorSource((reading(**values),)), alarm_output=alarm)
+                service.start()
+                service.step(0.0)
+                self.assertEqual(alarm.calls, [(AlarmSource.TRANSPORT_MONITORING, False), (AlarmSource.TRANSPORT_MONITORING, True)])
+
+    def test_excessive_but_not_moderate_gravity_deviation_activates_transport_alarm(self) -> None:
+        for value, expected in ((20.0, True), (15.0, False)):
+            with self.subTest(value=value):
+                alarm = RecordingAlarmOutput()
+                service = MonitoringService(SequenceSensorSource((reading(gravity_deviation_g=value),)), alarm_output=alarm)
+                service.start()
+                service.step(0.0)
+                self.assertEqual(alarm.calls[-1], (AlarmSource.TRANSPORT_MONITORING, expected))
+
+    def test_normal_and_unavailable_cycles_clear_transport_alarm(self) -> None:
+        alarm = RecordingAlarmOutput()
+        service = MonitoringService(
+            SequenceSensorSource((reading(temperature_c=27.1), reading(temperature_c=22.0), reading(temperature_c=None))),
+            alarm_output=alarm,
+        )
+        service.start()
+        service.step(0.0)
+        service.step(1.0)
+        service.step(2.0)
+
+        self.assertEqual(alarm.calls[-3:], [(AlarmSource.TRANSPORT_MONITORING, True), (AlarmSource.TRANSPORT_MONITORING, False), (AlarmSource.TRANSPORT_MONITORING, False)])
+
+    def test_start_and_stop_clear_only_transport_alarm_source(self) -> None:
+        alarm = RecordingAlarmOutput()
+        service = MonitoringService(SequenceSensorSource((reading(temperature_c=22.0),)), alarm_output=alarm)
+
+        service.start()
+        service.stop()
+
+        self.assertEqual(alarm.calls, [(AlarmSource.TRANSPORT_MONITORING, False), (AlarmSource.TRANSPORT_MONITORING, False)])
 
     def _conditions(self, violations: tuple) -> tuple[Condition, ...]:
         return tuple(violation.condition for violation in violations)
