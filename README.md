@@ -3,8 +3,8 @@
 A software-first reconstruction of an AP30023 coursework project about
 protecting fine-art items during transport. The original brief called for
 environmental monitoring, artwork identification, and a web interface for
-historical and live information. Its original source is preserved in
-[`sotheby/`](sotheby/); the coursework wording is retained in
+historical and live information. The original implementation was analyzed in
+the project audit; the coursework wording is retained in
 [`AP30023_project_1_course_request.md`](AP30023_project_1_course_request.md).
 
 The clean implementation in [`src/artwork_monitor/`](src/artwork_monitor/)

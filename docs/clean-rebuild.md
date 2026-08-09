@@ -5,9 +5,9 @@
 The original AP30023 coursework scenario was a Sotheby's fine-art transport
 monitor: maintain suitable environmental conditions, identify two artwork
 markers, and expose historical/live information in a web interface. The
-original snapshot remains in `sotheby/` for evidence and comparison; it is not
-the recommended runtime path. Its process-global state, eager hardware startup,
-and legacy behaviour are documented in
+original implementation informed the reconstruction; it is not part of the
+clean runtime path. Its process-global state, eager hardware startup, and
+legacy behaviour are documented in
 [`legacy-system-spec.md`](legacy-system-spec.md).
 
 `artwork_monitor` is the clean, software-only rebuild. It preserves the
@@ -106,7 +106,6 @@ or damage detection.
 src/artwork_monitor/     Clean package
 tests/                   Deterministic software tests
 docs/                    Clean and legacy design/reference documents
-sotheby/                 Preserved original coursework snapshot
 .github/workflows/       Software-only GitHub Actions QA
 instance/                Ignored local demo artifacts
 ```
