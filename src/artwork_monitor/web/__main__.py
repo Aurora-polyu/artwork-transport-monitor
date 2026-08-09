@@ -12,7 +12,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     arguments = parser.parse_args()
-    create_app().run(host=arguments.host, port=arguments.port, debug=False)
+    app = create_app()
+    app.extensions["socketio"].run(app, host=arguments.host, port=arguments.port, debug=False)
 
 
 if __name__ == "__main__":

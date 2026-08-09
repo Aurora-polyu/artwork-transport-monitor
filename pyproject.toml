@@ -15,6 +15,7 @@ dependencies = []
 core = []
 web = [
   "Flask>=3.0,<4",
+  "Flask-SocketIO>=5.3,<6",
 ]
 demo = [
   "Flask>=3.0,<4",

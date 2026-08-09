@@ -53,6 +53,12 @@ class TransportSessionWorkflow:
     def state(self) -> TransportSessionState:
         return self._state
 
+    @property
+    def session_id(self) -> str | None:
+        """Return the active or most recently completed explicit session ID."""
+
+        return self._session.session_id if self._session is not None else None
+
     def start(self, session: TransportSession) -> None:
         """Start a fresh session with an explicit identity and start timestamp."""
 

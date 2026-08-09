@@ -11,6 +11,7 @@ from artwork_monitor.application import TransportSessionState
 from artwork_monitor.domain import HONG_KONG, TransportSession
 
 from .services import WebDependencies, create_demo_dependencies
+from .realtime import RealtimeEventAdapter
 
 
 def create_app(*, dependencies: WebDependencies | None = None, database_path: Path | None = None):
@@ -18,6 +19,7 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
 
     try:
         from flask import Flask, abort, jsonify, render_template, request
+        from flask_socketio import SocketIO, emit
     except ModuleNotFoundError as error:
         if error.name == "flask":
             raise RuntimeError("Flask is optional; install artwork-transportation-monitor[web]") from error
@@ -29,6 +31,13 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
 
     app = Flask(__name__)
     app.extensions["artwork_monitor_dependencies"] = dependencies
+    socketio = SocketIO(app, async_mode="threading")
+    app.extensions["socketio"] = socketio
+    realtime = RealtimeEventAdapter(socketio)
+
+    @socketio.on("connect")
+    def socket_connect():
+        emit("state_snapshot", _snapshot(dependencies))
 
     @app.get("/")
     def home():
@@ -56,7 +65,9 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
             dependencies.transport_workflow.start(TransportSession(session_id.strip(), started_at))
         except RuntimeError as error:
             return jsonify({"error": str(error)}), 409
-        return jsonify({"state": dependencies.transport_workflow.state.value, "session_id": session_id.strip()}), 201
+        payload = {"state": dependencies.transport_workflow.state.value, "session_id": session_id.strip()}
+        realtime.publish("transport_started", payload)
+        return jsonify(payload), 201
 
     @app.post("/transport/step")
     def transport_step():
@@ -68,7 +79,17 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
             return jsonify({"error": "monotonic_seconds must be numeric"}), 400
         except RuntimeError as error:
             return jsonify({"error": str(error)}), 409
-        return jsonify({"processed": cycle is not None})
+        payload = {"processed": cycle is not None}
+        if cycle is not None:
+            session_id = dependencies.transport_workflow.session_id
+            assert session_id is not None
+            realtime.publish("transport_cycle", _cycle_payload(session_id, cycle))
+            if cycle.gps_fix is not None and cycle.gps_fix.is_available:
+                realtime.publish("gps_update", {"session_id": session_id, "timestamp": cycle.gps_fix.timestamp.isoformat(), "latitude": cycle.gps_fix.latitude, "longitude": cycle.gps_fix.longitude})
+            for kind, violations in (("immediate", cycle.immediate_violations), ("prolonged", cycle.prolonged_violations)):
+                for violation in violations:
+                    realtime.publish("violation", {"session_id": session_id, "kind": kind, "condition": violation.condition.value, "observed_value": violation.observed_value, "threshold_value": violation.threshold_value, "unit": violation.unit, "occurred_at": violation.occurred_at.isoformat()})
+        return jsonify(payload)
 
     @app.post("/transport/stop")
     def transport_stop():
@@ -79,7 +100,10 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
             return jsonify({"error": str(error)}), 400
         except RuntimeError as error:
             return jsonify({"error": str(error)}), 409
-        return jsonify({"state": TransportSessionState.COMPLETED.value, "session_id": completed.stored_session.session.session_id})
+        payload = {"state": TransportSessionState.COMPLETED.value, "session_id": completed.stored_session.session.session_id}
+        realtime.publish("transport_completed", payload)
+        realtime.publish("report_ready", {"session_id": completed.stored_session.session.session_id, "report_url": f"/report?session_id={completed.stored_session.session.session_id}"})
+        return jsonify(payload)
 
     @app.get("/check")
     def check_page():
@@ -92,16 +116,21 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
     @app.post("/check/start")
     def check_start():
         dependencies.artwork_workflow.start()
+        realtime.publish("artwork_check_started", {"checking": True, "artworks": _artworks(dependencies)})
         return jsonify({"checking": True})
 
     @app.post("/check/step")
     def check_step():
         step = dependencies.artwork_workflow.process_next_frame()
-        return jsonify({"processed": step is not None, "transition": _transition(step.transition) if step else None})
+        transition = _transition(step.transition) if step else None
+        if transition is not None:
+            realtime.publish("artwork_status_changed", {"transition": transition, "artworks": _artworks(dependencies)})
+        return jsonify({"processed": step is not None, "transition": transition})
 
     @app.post("/check/stop")
     def check_stop():
         dependencies.artwork_workflow.stop()
+        realtime.publish("artwork_check_stopped", {"checking": False, "artworks": _artworks(dependencies)})
         return jsonify({"checking": False})
 
     @app.get("/report")
@@ -189,4 +218,22 @@ def _report_json(report) -> dict[str, Any]:
         "humidity": {"minimum": report.humidity.minimum, "maximum": report.humidity.maximum, "mean": report.humidity.mean},
         "light": {"minimum": report.light.minimum, "maximum": report.light.maximum, "mean": report.light.mean},
         "gps": {"available_fix_count": report.gps.available_fix_count},
+    }
+
+
+def _snapshot(dependencies: WebDependencies) -> dict[str, Any]:
+    return {
+        "transport": {"state": dependencies.transport_workflow.state.value, "session_id": dependencies.transport_workflow.session_id},
+        "artwork": {"checking": dependencies.artwork_workflow.checking, "artworks": _artworks(dependencies)},
+        "session_ids": list(dependencies.session_repository.list_session_ids()),
+    }
+
+
+def _cycle_payload(session_id: str, cycle) -> dict[str, Any]:
+    return {
+        "session_id": session_id,
+        "monotonic_seconds": cycle.monotonic_seconds,
+        "reading": {"timestamp": cycle.reading.timestamp.isoformat(), "temperature_c": cycle.reading.temperature_c, "humidity_percent_rh": cycle.reading.humidity_percent_rh, "light_lux": cycle.reading.light_lux, "gravity_deviation_g": cycle.reading.gravity_deviation_g},
+        "immediate_conditions": [violation.condition.value for violation in cycle.immediate_violations],
+        "prolonged_conditions": [violation.condition.value for violation in cycle.prolonged_violations],
     }
