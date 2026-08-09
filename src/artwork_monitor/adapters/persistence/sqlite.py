@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -102,6 +103,15 @@ class SQLiteTransportSessionRepository:
         )
         return StoredTransportSession(session=session, records=tuple(self._record_from_row(row) for row in record_rows))
 
+    def list_session_ids(self) -> tuple[str, ...]:
+        """Return persisted sessions newest first for explicit UI selection."""
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT session_id FROM transport_sessions ORDER BY started_at DESC, session_id DESC"
+            ).fetchall()
+        return tuple(row["session_id"] for row in rows)
+
     def _initialize_schema(self) -> None:
         with self._connect() as connection:
             connection.executescript(
@@ -135,11 +145,16 @@ class SQLiteTransportSessionRepository:
                 """
             )
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     @staticmethod
     def _record_from_row(row: sqlite3.Row) -> SessionMonitoringRecord:

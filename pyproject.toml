@@ -13,6 +13,9 @@ dependencies = []
 [project.optional-dependencies]
 # Keep the base package dependency-free so it is usable on ordinary laptops.
 core = []
+web = [
+  "Flask>=3.0,<4",
+]
 demo = [
   "Flask>=3.0,<4",
   "Flask-SocketIO>=5.3,<6",
@@ -30,6 +33,7 @@ development = [
 
 [project.scripts]
 artwork-monitor = "artwork_monitor.__main__:main"
+artwork-monitor-web = "artwork_monitor.web.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/artwork_monitor"]

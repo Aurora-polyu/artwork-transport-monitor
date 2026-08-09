@@ -1,0 +1,192 @@
+"""Safe Flask factory for the clean, synchronous application services."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+from tempfile import mkdtemp
+from typing import Any
+
+from artwork_monitor.application import TransportSessionState
+from artwork_monitor.domain import HONG_KONG, TransportSession
+
+from .services import WebDependencies, create_demo_dependencies
+
+
+def create_app(*, dependencies: WebDependencies | None = None, database_path: Path | None = None):
+    """Create routes only; never start hardware, threads, loops, or notifications."""
+
+    try:
+        from flask import Flask, abort, jsonify, render_template, request
+    except ModuleNotFoundError as error:
+        if error.name == "flask":
+            raise RuntimeError("Flask is optional; install artwork-transportation-monitor[web]") from error
+        raise
+
+    if dependencies is None:
+        path = database_path or Path(mkdtemp(prefix="artwork-monitor-web-")) / "web.sqlite3"
+        dependencies = create_demo_dependencies(path)
+
+    app = Flask(__name__)
+    app.extensions["artwork_monitor_dependencies"] = dependencies
+
+    @app.get("/")
+    def home():
+        return render_template("index.html")
+
+    @app.get("/transport")
+    def transport_page():
+        return render_template("transport.html", state=dependencies.transport_workflow.state.value)
+
+    @app.get("/transport/status")
+    def transport_status():
+        return jsonify({"state": dependencies.transport_workflow.state.value})
+
+    @app.post("/transport/start")
+    def transport_start():
+        data = request.get_json(silent=True) or {}
+        session_id = data.get("session_id")
+        if not isinstance(session_id, str) or not session_id.strip():
+            return jsonify({"error": "session_id is required"}), 400
+        try:
+            started_at = _parse_timestamp(data.get("started_at"))
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        try:
+            dependencies.transport_workflow.start(TransportSession(session_id.strip(), started_at))
+        except RuntimeError as error:
+            return jsonify({"error": str(error)}), 409
+        return jsonify({"state": dependencies.transport_workflow.state.value, "session_id": session_id.strip()}), 201
+
+    @app.post("/transport/step")
+    def transport_step():
+        data = request.get_json(silent=True) or {}
+        try:
+            monotonic_seconds = float(data["monotonic_seconds"])
+            cycle = dependencies.transport_workflow.step(monotonic_seconds)
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "monotonic_seconds must be numeric"}), 400
+        except RuntimeError as error:
+            return jsonify({"error": str(error)}), 409
+        return jsonify({"processed": cycle is not None})
+
+    @app.post("/transport/stop")
+    def transport_stop():
+        data = request.get_json(silent=True) or {}
+        try:
+            completed = dependencies.transport_workflow.complete(_parse_timestamp(data.get("ended_at")))
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        except RuntimeError as error:
+            return jsonify({"error": str(error)}), 409
+        return jsonify({"state": TransportSessionState.COMPLETED.value, "session_id": completed.stored_session.session.session_id})
+
+    @app.get("/check")
+    def check_page():
+        return render_template("check.html", checking=dependencies.artwork_workflow.checking, artworks=_artworks(dependencies))
+
+    @app.get("/check/status")
+    def check_status():
+        return jsonify({"checking": dependencies.artwork_workflow.checking, "artworks": _artworks(dependencies)})
+
+    @app.post("/check/start")
+    def check_start():
+        dependencies.artwork_workflow.start()
+        return jsonify({"checking": True})
+
+    @app.post("/check/step")
+    def check_step():
+        step = dependencies.artwork_workflow.process_next_frame()
+        return jsonify({"processed": step is not None, "transition": _transition(step.transition) if step else None})
+
+    @app.post("/check/stop")
+    def check_stop():
+        dependencies.artwork_workflow.stop()
+        return jsonify({"checking": False})
+
+    @app.get("/report")
+    def report_page():
+        session_id = request.args.get("session_id")
+        report = _report_or_none(dependencies, session_id, abort)
+        return render_template("report.html", session_ids=dependencies.session_repository.list_session_ids(), report=report)
+
+    @app.get("/history")
+    def history_page():
+        return render_template("report.html", session_ids=dependencies.session_repository.list_session_ids(), report=None)
+
+    @app.get("/api/report/data")
+    def report_data():
+        session_id = request.args.get("session_id")
+        if not session_id:
+            return jsonify({"error": "session_id is required"}), 400
+        report = _report_or_none(dependencies, session_id, abort)
+        assert report is not None
+        return jsonify(_report_json(report))
+
+    @app.get("/gps")
+    def gps_page():
+        return render_template("gps.html", session_ids=dependencies.session_repository.list_session_ids())
+
+    @app.get("/api/gps/history")
+    def gps_history():
+        session_id = request.args.get("session_id")
+        if not session_id:
+            return jsonify({"error": "session_id is required"}), 400
+        try:
+            stored = dependencies.session_repository.load_session(session_id)
+        except KeyError:
+            abort(404)
+        points = [
+            {"timestamp": record.gps_fix.timestamp.isoformat(), "latitude": record.gps_fix.latitude, "longitude": record.gps_fix.longitude}
+            for record in stored.records
+            if record.gps_fix is not None and record.gps_fix.is_available
+        ]
+        return jsonify({"session_id": session_id, "points": points})
+
+    return app
+
+
+def _parse_timestamp(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError("timestamp is required as ISO-8601 text")
+    try:
+        timestamp = datetime.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError("timestamp must be ISO-8601 text") from error
+    return timestamp if timestamp.tzinfo is not None else timestamp.replace(tzinfo=HONG_KONG)
+
+
+def _artworks(dependencies: WebDependencies) -> list[dict[str, str | int | None]]:
+    return [
+        {"label_index": label, "name": state.identity.name, "lot": state.identity.lot, "status": state.status.value,
+         "time_in": state.time_in.isoformat() if state.time_in else None, "time_out": state.time_out.isoformat() if state.time_out else None}
+        for label, state in dependencies.artwork_workflow.states().items()
+    ]
+
+
+def _transition(transition):
+    if transition is None:
+        return None
+    return {"label_index": transition.label_index, "status": transition.status.value, "occurred_at": transition.occurred_at.isoformat()}
+
+
+def _report_or_none(dependencies: WebDependencies, session_id: str | None, abort):
+    if session_id is None:
+        return None
+    try:
+        return dependencies.report_generator.generate_from_repository(dependencies.session_repository, session_id)
+    except KeyError:
+        abort(404)
+
+
+def _report_json(report) -> dict[str, Any]:
+    return {
+        "session_id": report.session_id,
+        "started_at": report.started_at,
+        "ended_at": report.ended_at,
+        "monitoring_cycle_count": report.monitoring_cycle_count,
+        "temperature": {"minimum": report.temperature.minimum, "maximum": report.temperature.maximum, "mean": report.temperature.mean},
+        "humidity": {"minimum": report.humidity.minimum, "maximum": report.humidity.maximum, "mean": report.humidity.mean},
+        "light": {"minimum": report.light.minimum, "maximum": report.light.maximum, "mean": report.light.mean},
+        "gps": {"available_fix_count": report.gps.available_fix_count},
+    }

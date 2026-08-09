@@ -20,6 +20,8 @@ class TransportSessionRepository(Protocol):
 
     def load_session(self, session_id: str) -> StoredTransportSession: ...
 
+    def list_session_ids(self) -> tuple[str, ...]: ...
+
 
 class TransportSessionExporter(Protocol):
     """Export one already-stored session into a portable file."""

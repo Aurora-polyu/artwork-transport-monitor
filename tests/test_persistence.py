@@ -72,10 +72,13 @@ class TransportSessionPersistenceTests(unittest.TestCase):
             service.step(123.456)
             service.stop(UTC_START + timedelta(seconds=2))
 
-            with sqlite3.connect(database_path) as connection:
+            connection = sqlite3.connect(database_path)
+            try:
                 session_row = connection.execute("SELECT started_at, ended_at FROM transport_sessions").fetchone()
                 cycle_row = connection.execute("SELECT reading_timestamp FROM monitoring_cycles").fetchone()
                 columns = {row[1] for row in connection.execute("PRAGMA table_info(monitoring_cycles)")}
+            finally:
+                connection.close()
 
         self.assertEqual(session_row, ("2026-08-08T12:00:00+08:00", "2026-08-08T12:00:02+08:00"))
         self.assertEqual(cycle_row, ("2026-08-08T12:00:00+08:00",))
