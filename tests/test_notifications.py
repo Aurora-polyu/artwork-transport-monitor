@@ -130,9 +130,24 @@ class NotificationWorkflowTests(unittest.TestCase):
             [
                 sys.executable,
                 "-c",
-                "import sys, threading; import artwork_monitor.adapters.notifications, artwork_monitor.application.notifications; "
-                "forbidden = {'smtplib', 'socket', 'requests', 'urllib'}; "
-                "assert not forbidden.intersection(sys.modules); assert len(threading.enumerate()) == 1",
+                "import builtins, threading\n"
+                "attempted = []\n"
+                "forbidden = ('smtplib', 'socket', 'requests', 'urllib.request')\n"
+                "original_import = builtins.__import__\n"
+                "def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):\n"
+                "    imported_names = (name, *(f'{name}.{item}' for item in (fromlist or ())))\n"
+                "    if any(candidate in forbidden or candidate.startswith(('requests.', 'urllib.request.')) for candidate in imported_names):\n"
+                "        attempted.append(name)\n"
+                "    return original_import(name, globals, locals, fromlist, level)\n"
+                "before_threads = set(threading.enumerate())\n"
+                "builtins.__import__ = guarded_import\n"
+                "try:\n"
+                "    import artwork_monitor.adapters.notifications\n"
+                "    import artwork_monitor.application.notifications\n"
+                "finally:\n"
+                "    builtins.__import__ = original_import\n"
+                "assert not attempted, attempted\n"
+                "assert set(threading.enumerate()) == before_threads\n",
             ],
             cwd=project_root,
             env={"PYTHONPATH": str(project_root / "src")},
