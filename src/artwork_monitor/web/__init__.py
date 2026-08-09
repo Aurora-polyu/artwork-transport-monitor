@@ -1,6 +1,15 @@
 """Optional Flask interface layer; importing the core package never requires Flask."""
 
 from .app import create_app
-from .services import WebDependencies
+from .capabilities import CapabilityState, ComponentCapability, PhysicalValidation, RuntimeCapabilities
+from .services import WebDependencies, create_demo_dependencies
 
-__all__ = ["WebDependencies", "create_app"]
+__all__ = [
+    "CapabilityState",
+    "ComponentCapability",
+    "PhysicalValidation",
+    "RuntimeCapabilities",
+    "WebDependencies",
+    "create_app",
+    "create_demo_dependencies",
+]

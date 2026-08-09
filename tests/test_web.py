@@ -10,8 +10,8 @@ import threading
 import unittest
 
 from artwork_monitor.adapters.persistence import SQLiteTransportSessionRepository
-from artwork_monitor.domain import GPSFix, GPSFixStatus, HONG_KONG, SensorReading, SessionMonitoringRecord, TransportSession
-from artwork_monitor.web import WebDependencies, create_app
+from artwork_monitor.domain import Condition, GPSFix, GPSFixStatus, HONG_KONG, SensorReading, SessionMonitoringRecord, TransportSession, Violation
+from artwork_monitor.web import CapabilityState, ComponentCapability, PhysicalValidation, RuntimeCapabilities, WebDependencies, create_app
 from artwork_monitor.web.services import create_demo_dependencies
 
 
@@ -70,6 +70,7 @@ class WebAppTests(unittest.TestCase):
                 report_generator=dependencies.report_generator,
                 artwork_workflow=dependencies.artwork_workflow,
                 transport_workflow=dependencies.transport_workflow,
+                runtime_capabilities=dependencies.runtime_capabilities,
             )
             client = create_app(dependencies=dependencies).test_client()
 
@@ -82,12 +83,93 @@ class WebAppTests(unittest.TestCase):
             self.assertEqual(gps.get_json()["points"][0]["latitude"], 22.30)
             self.assertIn(first.session_id.encode(), client.get("/report").data)
 
+    def test_dashboard_data_loads_one_persisted_session_with_gps_dropout(self) -> None:
+        with TemporaryDirectory() as temporary:
+            database = Path(temporary) / "sessions.sqlite3"
+            repository = SQLiteTransportSessionRepository(database)
+            started_at = datetime(2026, 8, 9, 12, 0, tzinfo=HONG_KONG)
+            first = TransportSession("first", started_at)
+            repository.create_session(first)
+            repository.append_record(
+                SessionMonitoringRecord(
+                    session_id="first",
+                    sequence=0,
+                    reading=SensorReading(timestamp=started_at, temperature_c=21.0, humidity_percent_rh=40.0, light_lux=500.0, gravity_deviation_g=0.2),
+                    gps_fix=GPSFix(started_at, GPSFixStatus.FIX, 22.30, 114.17),
+                    immediate_violations=(),
+                    prolonged_violations=(),
+                )
+            )
+            dropout_at = started_at + timedelta(seconds=1)
+            repository.append_record(
+                SessionMonitoringRecord(
+                    session_id="first",
+                    sequence=1,
+                    reading=SensorReading(timestamp=dropout_at, temperature_c=22.0, humidity_percent_rh=41.0, light_lux=6000.1, gravity_deviation_g=None),
+                    gps_fix=GPSFix.no_fix(dropout_at),
+                    immediate_violations=(Violation(Condition.LIGHT_HIGH, 6000.1, 6000.0, "lux", dropout_at),),
+                    prolonged_violations=(),
+                )
+            )
+            repository.finish_session("first", dropout_at)
+            _stored_session(repository, "second", 29.0, 22.40)
+            demo = create_demo_dependencies(database)
+            client = create_app(dependencies=WebDependencies(
+                session_repository=repository,
+                report_generator=demo.report_generator,
+                artwork_workflow=demo.artwork_workflow,
+                transport_workflow=demo.transport_workflow,
+                runtime_capabilities=demo.runtime_capabilities,
+            )).test_client()
+
+            response = client.get("/api/sessions/first/dashboard-data")
+
+            self.assertEqual(response.status_code, 200)
+            data = response.get_json()
+            self.assertEqual(data["session_id"], "first")
+            self.assertEqual(len(data["records"]), 2)
+            self.assertEqual(data["records"][0]["gps"]["status"], "fix")
+            self.assertEqual(data["records"][1]["gps"]["status"], "no_fix")
+            self.assertIsNone(data["records"][1]["gps"]["latitude"])
+            self.assertEqual(data["records"][1]["immediate_violations"][0]["condition"], "light_high")
+            other = client.get("/api/sessions/second/dashboard-data").get_json()
+            self.assertEqual(other["session_id"], "second")
+            self.assertEqual(len(other["records"]), 1)
+            self.assertEqual(other["records"][0]["reading"]["temperature_c"], 29.0)
+
+    def test_dashboard_capabilities_are_declared_by_dependencies(self) -> None:
+        with TemporaryDirectory() as temporary:
+            demo = create_demo_dependencies(Path(temporary) / "web.sqlite3")
+            simulated = create_app(dependencies=demo).test_client().get("/api/dashboard/capabilities").get_json()
+            self.assertEqual(simulated["components"]["sensors"], {"state": "simulated", "physical_validation": "not_validated"})
+            self.assertEqual(simulated["components"]["gps"], {"state": "simulated", "physical_validation": "not_validated"})
+            self.assertEqual(simulated["components"]["storage"], {"state": "available", "physical_validation": "not_applicable"})
+
+            validated = RuntimeCapabilities(
+                sensors=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED),
+                gps=ComponentCapability(CapabilityState.UNAVAILABLE, PhysicalValidation.NOT_VALIDATED),
+                artwork=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.VALIDATED),
+                storage=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE),
+                realtime=ComponentCapability(CapabilityState.AVAILABLE, PhysicalValidation.NOT_APPLICABLE),
+            )
+            configured = WebDependencies(
+                session_repository=demo.session_repository,
+                report_generator=demo.report_generator,
+                artwork_workflow=demo.artwork_workflow,
+                transport_workflow=demo.transport_workflow,
+                runtime_capabilities=validated,
+            )
+            payload = create_app(dependencies=configured).test_client().get("/api/dashboard/capabilities").get_json()
+            self.assertEqual(payload["components"]["sensors"]["physical_validation"], "validated")
+            self.assertEqual(payload["components"]["gps"]["state"], "unavailable")
+
     def test_unknown_sessions_and_invalid_transport_request_are_rejected(self) -> None:
         with TemporaryDirectory() as temporary:
             client = self._app(Path(temporary)).test_client()
 
             self.assertEqual(client.get("/api/report/data?session_id=missing").status_code, 404)
             self.assertEqual(client.get("/api/gps/history?session_id=missing").status_code, 404)
+            self.assertEqual(client.get("/api/sessions/missing/dashboard-data").status_code, 404)
             self.assertEqual(client.post("/transport/start", json={}).status_code, 400)
 
     def test_separate_factories_have_no_artwork_state_leakage(self) -> None:

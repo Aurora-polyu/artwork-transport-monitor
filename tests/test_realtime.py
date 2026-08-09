@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import threading
@@ -39,6 +39,7 @@ class RealtimeWebTests(unittest.TestCase):
             self.assertTrue(socket.is_connected())
             self.assertEqual(received[0]["name"], "state_snapshot")
             self.assertEqual(received[0]["args"][0]["transport"]["state"], "not_started")
+            self.assertEqual(received[0]["args"][0]["capabilities"]["components"]["sensors"]["state"], "simulated")
             socket.disconnect()
             self.assertFalse(socket.is_connected())
 
@@ -73,6 +74,7 @@ class RealtimeWebTests(unittest.TestCase):
                 report_generator=SessionReportGenerator(),
                 artwork_workflow=create_demo_dependencies(root / "art.sqlite3").artwork_workflow,
                 transport_workflow=TransportSessionWorkflow(monitoring, repository),
+                runtime_capabilities=create_demo_dependencies(root / "capabilities.sqlite3").runtime_capabilities,
             )
             app = create_app(dependencies=dependencies)
             socket = app.extensions["socketio"].test_client(app)
@@ -87,6 +89,35 @@ class RealtimeWebTests(unittest.TestCase):
             self.assertEqual(violation["session_id"], "hot")
             self.assertEqual(violation["kind"], "immediate")
             self.assertEqual(violation["condition"], "temperature_high")
+
+    def test_realtime_wall_clock_timestamps_are_normalized_to_hong_kong(self) -> None:
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = SQLiteTransportSessionRepository(root / "timestamps.sqlite3")
+            observed_at = datetime(2026, 8, 9, 4, 0, tzinfo=timezone.utc)
+            monitoring = MonitoringService(
+                SequenceSensorSource((SensorReading(timestamp=observed_at, temperature_c=27.1),)),
+                gps_source=SequenceGPSFixSource((GPSFix(observed_at, GPSFixStatus.FIX, 22.30, 114.17),)),
+                session_repository=repository,
+            )
+            demo = create_demo_dependencies(root / "web.sqlite3")
+            app = create_app(dependencies=WebDependencies(
+                session_repository=repository,
+                report_generator=SessionReportGenerator(),
+                artwork_workflow=demo.artwork_workflow,
+                transport_workflow=TransportSessionWorkflow(monitoring, repository),
+                runtime_capabilities=demo.runtime_capabilities,
+            ))
+            socket = app.extensions["socketio"].test_client(app)
+            socket.get_received()
+            http = app.test_client()
+            http.post("/transport/start", json={"session_id": "timestamps", "started_at": observed_at.isoformat()})
+            http.post("/transport/step", json={"monotonic_seconds": 0})
+
+            payloads = {event["name"]: event["args"][0] for event in socket.get_received()}
+            self.assertEqual(payloads["transport_cycle"]["reading"]["timestamp"], "2026-08-09T12:00:00+08:00")
+            self.assertEqual(payloads["gps_update"]["timestamp"], "2026-08-09T12:00:00+08:00")
+            self.assertEqual(payloads["violation"]["occurred_at"], "2026-08-09T12:00:00+08:00")
 
     def test_artwork_transition_emits_status_change_only_after_legacy_cadence(self) -> None:
         with TemporaryDirectory() as temporary:

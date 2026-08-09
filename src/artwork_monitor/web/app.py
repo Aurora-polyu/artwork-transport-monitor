@@ -12,6 +12,7 @@ from artwork_monitor.domain import HONG_KONG, TransportSession
 
 from .services import WebDependencies, create_demo_dependencies
 from .realtime import RealtimeEventAdapter
+from .serialization import dashboard_session, timestamp, violation
 
 
 def create_app(*, dependencies: WebDependencies | None = None, database_path: Path | None = None):
@@ -51,6 +52,10 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
     def transport_status():
         return jsonify({"state": dependencies.transport_workflow.state.value})
 
+    @app.get("/api/dashboard/capabilities")
+    def dashboard_capabilities():
+        return jsonify({"components": dependencies.runtime_capabilities.as_dict()})
+
     @app.post("/transport/start")
     def transport_start():
         data = request.get_json(silent=True) or {}
@@ -85,10 +90,10 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
             assert session_id is not None
             realtime.publish("transport_cycle", _cycle_payload(session_id, cycle))
             if cycle.gps_fix is not None and cycle.gps_fix.is_available:
-                realtime.publish("gps_update", {"session_id": session_id, "timestamp": cycle.gps_fix.timestamp.isoformat(), "latitude": cycle.gps_fix.latitude, "longitude": cycle.gps_fix.longitude})
+                realtime.publish("gps_update", {"session_id": session_id, "timestamp": timestamp(cycle.gps_fix.timestamp), "latitude": cycle.gps_fix.latitude, "longitude": cycle.gps_fix.longitude})
             for kind, violations in (("immediate", cycle.immediate_violations), ("prolonged", cycle.prolonged_violations)):
                 for violation in violations:
-                    realtime.publish("violation", {"session_id": session_id, "kind": kind, "condition": violation.condition.value, "observed_value": violation.observed_value, "threshold_value": violation.threshold_value, "unit": violation.unit, "occurred_at": violation.occurred_at.isoformat()})
+                    realtime.publish("violation", {"session_id": session_id, "kind": kind, **_violation_payload(violation)})
         return jsonify(payload)
 
     @app.post("/transport/stop")
@@ -166,11 +171,19 @@ def create_app(*, dependencies: WebDependencies | None = None, database_path: Pa
         except KeyError:
             abort(404)
         points = [
-            {"timestamp": record.gps_fix.timestamp.isoformat(), "latitude": record.gps_fix.latitude, "longitude": record.gps_fix.longitude}
+            {"timestamp": timestamp(record.gps_fix.timestamp), "latitude": record.gps_fix.latitude, "longitude": record.gps_fix.longitude}
             for record in stored.records
             if record.gps_fix is not None and record.gps_fix.is_available
         ]
         return jsonify({"session_id": session_id, "points": points})
+
+    @app.get("/api/sessions/<session_id>/dashboard-data")
+    def dashboard_session_data(session_id: str):
+        try:
+            stored = dependencies.session_repository.load_session(session_id)
+        except KeyError:
+            abort(404)
+        return jsonify(dashboard_session(stored))
 
     return app
 
@@ -188,7 +201,7 @@ def _parse_timestamp(value: Any) -> datetime:
 def _artworks(dependencies: WebDependencies) -> list[dict[str, str | int | None]]:
     return [
         {"label_index": label, "name": state.identity.name, "lot": state.identity.lot, "status": state.status.value,
-         "time_in": state.time_in.isoformat() if state.time_in else None, "time_out": state.time_out.isoformat() if state.time_out else None}
+         "time_in": timestamp(state.time_in) if state.time_in else None, "time_out": timestamp(state.time_out) if state.time_out else None}
         for label, state in dependencies.artwork_workflow.states().items()
     ]
 
@@ -196,7 +209,7 @@ def _artworks(dependencies: WebDependencies) -> list[dict[str, str | int | None]
 def _transition(transition):
     if transition is None:
         return None
-    return {"label_index": transition.label_index, "status": transition.status.value, "occurred_at": transition.occurred_at.isoformat()}
+    return {"label_index": transition.label_index, "status": transition.status.value, "occurred_at": timestamp(transition.occurred_at)}
 
 
 def _report_or_none(dependencies: WebDependencies, session_id: str | None, abort):
@@ -226,6 +239,7 @@ def _snapshot(dependencies: WebDependencies) -> dict[str, Any]:
         "transport": {"state": dependencies.transport_workflow.state.value, "session_id": dependencies.transport_workflow.session_id},
         "artwork": {"checking": dependencies.artwork_workflow.checking, "artworks": _artworks(dependencies)},
         "session_ids": list(dependencies.session_repository.list_session_ids()),
+        "capabilities": {"components": dependencies.runtime_capabilities.as_dict()},
     }
 
 
@@ -233,7 +247,11 @@ def _cycle_payload(session_id: str, cycle) -> dict[str, Any]:
     return {
         "session_id": session_id,
         "monotonic_seconds": cycle.monotonic_seconds,
-        "reading": {"timestamp": cycle.reading.timestamp.isoformat(), "temperature_c": cycle.reading.temperature_c, "humidity_percent_rh": cycle.reading.humidity_percent_rh, "light_lux": cycle.reading.light_lux, "gravity_deviation_g": cycle.reading.gravity_deviation_g},
+        "reading": {"timestamp": timestamp(cycle.reading.timestamp), "temperature_c": cycle.reading.temperature_c, "humidity_percent_rh": cycle.reading.humidity_percent_rh, "light_lux": cycle.reading.light_lux, "gravity_deviation_g": cycle.reading.gravity_deviation_g},
         "immediate_conditions": [violation.condition.value for violation in cycle.immediate_violations],
         "prolonged_conditions": [violation.condition.value for violation in cycle.prolonged_violations],
     }
+
+
+def _violation_payload(item) -> dict[str, Any]:
+    return violation(item)

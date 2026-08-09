@@ -18,6 +18,8 @@ from artwork_monitor.application import ArtworkWorkflow, MonitoringService, Sess
 from artwork_monitor.domain import InferenceResult
 from artwork_monitor.ports import CameraFrame, TransportSessionRepository
 
+from .capabilities import RuntimeCapabilities
+
 
 @dataclass(frozen=True, slots=True)
 class WebDependencies:
@@ -27,6 +29,7 @@ class WebDependencies:
     report_generator: SessionReportGenerator
     artwork_workflow: ArtworkWorkflow
     transport_workflow: TransportSessionWorkflow
+    runtime_capabilities: RuntimeCapabilities
 
 
 def create_demo_dependencies(database_path: Path) -> WebDependencies:
@@ -49,4 +52,5 @@ def create_demo_dependencies(database_path: Path) -> WebDependencies:
             detector=SequenceDetector((InferenceResult(0, 0.99), InferenceResult(1, 0.99))),
         ),
         transport_workflow=TransportSessionWorkflow(monitoring, repository),
+        runtime_capabilities=RuntimeCapabilities.simulation(),
     )
