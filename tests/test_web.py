@@ -121,6 +121,31 @@ class WebAppTests(unittest.TestCase):
             self.assertEqual(socket_client.status_code, 200)
             socket_client.close()
 
+    def test_transport_page_has_session_controls_and_local_live_client(self) -> None:
+        with TemporaryDirectory() as temporary:
+            client = self._app(Path(temporary)).test_client()
+
+            page = client.get("/transport")
+
+            self.assertIn(b'id="transport-session-id"', page.data)
+            self.assertIn(b'id="transport-start"', page.data)
+            self.assertIn(b'id="transport-step"', page.data)
+            self.assertIn(b'id="transport-stop"', page.data)
+            self.assertIn(b'id="transport-violation-list"', page.data)
+            self.assertIn(b'id="transport-event-list"', page.data)
+            self.assertIn(b'id="transport-gps-fix"', page.data)
+            self.assertIn(b"transport.js", page.data)
+            self.assertIn(b"vendor/socket.io.js", page.data)
+            self.assertIn(b"Temperature", page.data)
+            self.assertIn(b"Vibration", page.data)
+
+            script = client.get("/static/transport.js")
+            self.assertEqual(script.status_code, 200)
+            self.assertIn(b'"transport_cycle"', script.data)
+            self.assertIn(b'"violation"', script.data)
+            self.assertIn(b'"gps_update"', script.data)
+            script.close()
+
     def test_artwork_http_actions_delegate_to_injected_workflow(self) -> None:
         with TemporaryDirectory() as temporary:
             app = self._app(Path(temporary))

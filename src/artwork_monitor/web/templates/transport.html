@@ -1,16 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Transport Monitoring · Artwork Transportation Monitoring{% endblock %}
 {% block content %}
-<section class="simple-page" aria-labelledby="transport-title">
-  <header class="simple-page-header">
-    <p class="eyebrow">TRANSPORT WORKFLOW</p>
-    <h1 id="transport-title">Transport Monitoring</h1>
-    <p>Explicit, caller-controlled transport actions for one session at a time.</p>
-  </header>
-  <article class="simple-panel">
-    <div class="simple-panel-heading"><div><span class="field-label">Workflow state</span><strong class="workflow-state">{{ state|replace('_', ' ') }}</strong></div><span class="badge badge-simulation">SIMULATION MODE</span></div>
-    <p>POST explicit JSON actions to <code>/transport/start</code>, <code>/transport/step</code>, and <code>/transport/stop</code>.</p>
-    <p class="simple-note">No monitoring begins when this page or application is created.</p>
-  </article>
-</section>
+<div class="transport-page" id="transport-page" data-initial-state="{{ state }}" aria-live="polite">
+  <section class="dashboard-masthead" aria-labelledby="transport-title">
+    <div><p class="eyebrow">TRANSPORT WORKFLOW</p><h1 id="transport-title">Transport Monitoring</h1><p class="masthead-note">Explicit session controls with live environmental status.</p></div>
+    <div class="masthead-status"><span class="badge badge-simulation">SIMULATION MODE</span><span class="badge badge-neutral" id="transport-lifecycle">Loading lifecycle</span><span class="connection-state" id="transport-connection"><span class="status-dot"></span>Connecting</span></div>
+  </section>
+  <p class="dashboard-banner is-hidden" id="transport-banner" role="status"></p>
+  <section class="transport-control-card" aria-label="Transport session controls">
+    <div class="transport-session-field"><label class="field-label" for="transport-session-id">Session ID</label><input id="transport-session-id" name="session_id" autocomplete="off" placeholder="e.g. gallery-to-vault-01"><p id="transport-session-hint">Connect to load the active session.</p></div>
+    <div class="transport-controls"><button class="button-link" id="transport-start" type="button" disabled>Start</button><button class="button-link button-secondary" id="transport-step" type="button" disabled>Next Step</button><button class="button-link button-danger" id="transport-stop" type="button" disabled>Stop</button></div>
+  </section>
+  <section class="metric-grid" aria-label="Live environmental measurements">
+    <article class="metric-card" data-transport-metric="temperature_c"><div class="metric-card-top"><span class="metric-icon">T</span><div><p class="metric-label">Temperature</p><p class="metric-threshold">18–27 °C</p></div></div><p class="metric-value"><span data-value>—</span><small>°C</small></p><p class="metric-status" data-status>Loading</p></article>
+    <article class="metric-card" data-transport-metric="humidity_percent_rh"><div class="metric-card-top"><span class="metric-icon">H</span><div><p class="metric-label">Humidity</p><p class="metric-threshold">25–75 %RH</p></div></div><p class="metric-value"><span data-value>—</span><small>%RH</small></p><p class="metric-status" data-status>Loading</p></article>
+    <article class="metric-card" data-transport-metric="light_lux"><div class="metric-card-top"><span class="metric-icon">L</span><div><p class="metric-label">Light</p><p class="metric-threshold">≤ 6000 lux</p></div></div><p class="metric-value"><span data-value>—</span><small>lux</small></p><p class="metric-status" data-status>Loading</p></article>
+    <article class="metric-card" data-transport-metric="gravity_deviation_g"><div class="metric-card-top"><span class="metric-icon">V</span><div><p class="metric-label">Vibration</p><p class="metric-threshold">Gravity deviation · provisional</p></div></div><p class="metric-value"><span data-value>—</span><small>g</small></p><p class="metric-status" data-status>Loading</p></article>
+  </section>
+  <section class="transport-detail-grid">
+    <article class="panel"><div class="panel-heading"><div><p class="eyebrow">CONDITION STATUS</p><h2>Immediate / Prolonged Violations</h2></div></div><ul class="transport-list" id="transport-violation-list"></ul><p class="panel-empty" id="transport-violation-empty">No violations recorded for this session.</p></article>
+    <article class="panel"><div class="panel-heading"><div><p class="eyebrow">GPS</p><h2>Availability & Latest Fix</h2></div></div><dl class="transport-gps"><div><dt>Availability</dt><dd id="transport-gps-availability">Loading</dd></div><div><dt>Latest fix</dt><dd id="transport-gps-fix">—</dd></div></dl><p class="panel-empty" id="transport-gps-note">No GPS status is available yet.</p></article>
+    <article class="panel"><div class="panel-heading"><div><p class="eyebrow">ACTIVITY</p><h2>Recent Transport Events</h2></div></div><ol class="event-list" id="transport-event-list"></ol><p class="panel-empty" id="transport-event-empty">Waiting for transport activity.</p></article>
+  </section>
+</div>
+<style>.transport-page{display:grid;gap:22px}.transport-control-card{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:18px 20px;background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow)}.transport-session-field{display:grid;gap:5px;min-width:min(100%,420px);flex:1}.transport-session-field input{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:#fffefd;color:var(--ink);font:700 .88rem inherit}.transport-session-field p{margin:0;color:var(--muted);font-size:.76rem}.transport-controls{display:flex;flex-wrap:wrap;gap:8px}.transport-controls .button-link{border:0;cursor:pointer}.transport-controls .button-link:disabled{background:var(--slate-soft);color:var(--muted);cursor:not-allowed}.button-secondary{background:var(--gold)}.button-danger{background:var(--red)}.transport-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.transport-list{display:grid;gap:8px;padding:0;margin:0;list-style:none;max-height:240px;overflow:auto}.transport-list-item{display:grid;grid-template-columns:auto 1fr;gap:4px 9px;padding:9px 0;border-top:1px solid var(--line);font-size:.78rem}.transport-list-item strong{text-transform:uppercase;font-size:.65rem;letter-spacing:.06em;color:var(--red)}.transport-list-item.is-prolonged strong{color:var(--amber)}.transport-list-item small{grid-column:2;color:var(--muted)}.transport-gps{display:grid;gap:10px;margin:0}.transport-gps div{padding:11px;background:#fbf8f2;border-radius:8px}.transport-gps dt{color:var(--muted);font-size:.72rem}.transport-gps dd{margin:3px 0 0;font-weight:800;font-variant-numeric:tabular-nums}@media(max-width:1100px){.transport-detail-grid{grid-template-columns:1fr}}@media(max-width:720px){.transport-control-card{align-items:stretch;flex-direction:column}.transport-controls{width:100%}.transport-controls .button-link{flex:1}.transport-page{gap:15px}}</style>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='vendor/socket.io.js') }}"></script><script src="{{ url_for('static', filename='transport.js') }}"></script>{% endblock %}
