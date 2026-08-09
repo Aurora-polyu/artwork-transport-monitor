@@ -80,8 +80,10 @@ normal except for the deliberately provisional gravity-calibration label.
   environmental and GPS summary.
 - **GPS (`/gps`)**: select `portfolio-demo` to view the same retained GPS
   history.
-- **Transport (`/transport`)**: documents the explicit action endpoints used
-  above; it does not begin monitoring by itself.
+- **Transport (`/transport`)**: presents the explicit session controls and
+  local live status. It does not begin monitoring by itself. Treat it as a
+  simulation-oriented integration preview rather than a fully accepted
+  interactive operational workflow.
 
 To repeat the exact scenario, stop the web server with `Ctrl+C` and start it
 again. The dashboard creates a new temporary demo database and finite simulated
@@ -112,3 +114,5 @@ as proof of a physical device, on-road GPS tracking, or hardware calibration.
 - The dashboard is a local development server, not a production deployment.
 - Raspberry Pi I2C sensors, GPIO buzzer, serial GPS, camera/TFLite integration,
   environmental calibration, and route-deviation validation remain deferred.
+- Browser acceptance of every redesigned Transport-page lifecycle, error, and
+  reconnection path remains deferred; do not use it as hardware-control proof.

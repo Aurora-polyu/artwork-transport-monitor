@@ -51,6 +51,12 @@ local Socket.IO events for transport cycles, available GPS fixes, violations,
 and completion/report readiness. Its browser connection status is not a claim
 that any physical device is connected.
 
+The Transport page is a local integration preview, not a completed operational
+control surface. Its redesigned controls and live rendering have not received
+full browser acceptance testing for all lifecycle/error combinations; that
+frontend completion remains deferred. This limitation does not alter the
+underlying explicit HTTP lifecycle or deterministic service behavior.
+
 ## Monitoring behaviour
 
 Environmental values use EWMA filtering: temperature/humidity use alpha=0.1
@@ -122,3 +128,8 @@ behaviour, serial GPS reception, camera/model compatibility and calibration,
 environmental calibration, route-deviation validation, and production web/email
 operations. The clean rebuild deliberately does not perform real SMTP or device
 startup in normal tests or demos.
+
+Use [`hardware-revalidation-checklist.md`](hardware-revalidation-checklist.md)
+as the required evidence record before enabling or presenting hardware-facing
+adapters. A successful simulation, local Socket.IO connection, or optional
+adapter import is not a hardware-validation result.
